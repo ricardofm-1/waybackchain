@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy · Wayback Wallet</title>
+    <style>
+      body { font: 16px/1.6 system-ui, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px 16px; color-scheme: light dark; }
+      code { font-size: 0.9em; }
+    </style>
+  </head>
+  <body>
+    <h1>Privacy</h1>
+    <p>Wayback Wallet has no accounts and stores no addresses on its servers.</p>
+    <h2>Cookies</h2>
+    <ul>
+      <li><code>hl_addr</code> keeps your address list on this device so you don't retype it. It's set when a lookup succeeds and lasts 180 days. Use “Clear saved addresses” to delete it.</li>
+      <li><code>hl_sid</code> is a random ID that counts your daily lookups (10 per day). Page scripts can't read it. It lasts 365 days.</li>
+    </ul>
+    <p>Both cookies are needed for features you ask for, so there is no consent banner.</p>
+    <h2>What we send and log</h2>
+    <p>Your addresses leave your browser only inside a lookup request. Our server forwards them to public blockchain data providers to fetch balances, and does not log them. Server logs record only the chain, whether the request succeeded, and how long it took.</p>
+    <p><a href="./">Back to Wayback Wallet</a></p>
+  </body>
+</html>
