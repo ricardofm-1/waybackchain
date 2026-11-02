@@ -2,3 +2,5 @@
 /web/dist
 .wrangler
 .dev.vars
+/worker/build
+/worker/node_modules

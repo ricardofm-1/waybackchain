@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["core", "web"]
-# "worker" joins the workspace in build step 2.
+members = ["core", "web", "worker"]
 
 [workspace.package]
 edition = "2021"

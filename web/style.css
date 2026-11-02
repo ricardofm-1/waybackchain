@@ -95,11 +95,7 @@ ol.lines li.flagged { background: var(--bad-bg); }
 
 .captcha {
   margin-top: 12px;
-  padding: 14px;
-  border: 1px dashed var(--line);
-  border-radius: 8px;
-  font-size: 0.85rem;
-  color: var(--muted);
+  min-height: 65px;
 }
 
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }

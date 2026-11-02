@@ -1,7 +1,12 @@
+mod api;
 mod cookie;
+mod turnstile;
 
+use leptos::html::Div;
 use leptos::prelude::*;
-use wayback_core::address_list::{parse_lines, submittable, Line, LineState};
+use leptos::task::spawn_local;
+use wayback_core::address_list::{parse_lines, submittable, Line, LineState, SubmitError};
+use wayback_core::api::{AddressRef, LookupStartRequest, Quota};
 use wayback_core::MAX_ADDRESSES;
 
 /// First date with a Bitcoin block.
@@ -20,6 +25,16 @@ fn utc_date(offset_days: f64) -> String {
     format!("{:04}-{:02}-{:02}", d.get_utc_full_year(), d.get_utc_month() + 1, d.get_utc_date())
 }
 
+/// A lookup the Worker accepted; per-address calls use it in build step 3.
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+struct ActiveLookup {
+    token: String,
+    date: String,
+    addresses: Vec<AddressRef>,
+    show_usd: bool,
+}
+
 #[component]
 fn App() -> impl IntoView {
     let saved = cookie::load();
@@ -30,15 +45,37 @@ fn App() -> impl IntoView {
     // Line numbers to highlight after a rejected submit.
     let (flagged, set_flagged) = signal(Vec::<usize>::new());
     let (message, set_message) = signal(Option::<(bool, String)>::None);
+    let (quota, set_quota) = signal(Option::<Quota>::None);
+    let (captcha_token, set_captcha_token) = signal(String::new());
+    let (busy, set_busy) = signal(false);
+    let (_lookup, set_lookup) = signal(Option::<ActiveLookup>::None);
+    let captcha_ref = NodeRef::<Div>::new();
+
+    spawn_local(async move {
+        if let Ok(q) = api::quota().await {
+            set_quota.set(Some(q));
+        }
+    });
+
+    Effect::new(move |_| {
+        if let Some(el) = captcha_ref.get() {
+            turnstile::render(&el, move |token| set_captcha_token.set(token));
+        }
+    });
 
     let lines = Memo::new(move |_| parse_lines(&text.get()));
     let unique_count = Memo::new(move |_| {
         lines.with(|ls| ls.iter().filter(|l| matches!(l.state, LineState::Valid(_))).count())
     });
-    // Enabled whenever there's something to submit; the submit handler rejects
-    // invalid lines and highlights them (spec: "highlight the bad lines").
-    // TODO(step 2): also require a completed Turnstile widget.
-    let can_submit = Memo::new(move |_| lines.with(|ls| !ls.is_empty()) && !date.get().is_empty());
+    // Enabled once there's input, a date and a captcha token; the submit
+    // handler rejects invalid lines and highlights them.
+    let can_submit = Memo::new(move |_| {
+        lines.with(|ls| !ls.is_empty())
+            && !date.get().is_empty()
+            && !captcha_token.get().is_empty()
+            && !busy.get()
+            && quota.get().is_none_or(|q| q.remaining > 0)
+    });
 
     let today_for_submit = today.clone();
     let on_submit = move |ev: leptos::ev::SubmitEvent| {
@@ -48,30 +85,69 @@ fn App() -> impl IntoView {
             set_message.set(Some((false, format!("Pick a date between {MIN_DATE} and {today_for_submit}."))));
             return;
         }
-        match lines.with(|ls| submittable(ls)) {
+        let addresses = match lines.with(|ls| submittable(ls)) {
+            Ok(a) => a,
             Err(e) => {
-                if let wayback_core::address_list::SubmitError::InvalidLines(ref ns) = e {
+                if let SubmitError::InvalidLines(ref ns) = e {
                     set_flagged.set(ns.clone());
                 }
                 set_message.set(Some((false, e.to_string())));
+                return;
             }
-            Ok(addresses) => {
-                set_flagged.set(Vec::new());
-                // TODO(step 2–3): call /api/lookup/start and save the cookie
-                // only once the lookup succeeds.
-                let kept = cookie::save(&addresses);
-                let mut msg = format!(
-                    "{} address{} ready for {d} (USD {}). Lookups need the Worker, coming in build step 2.",
-                    addresses.len(),
-                    if addresses.len() == 1 { "" } else { "es" },
-                    if show_usd.get() { "on" } else { "off" },
-                );
-                if kept < addresses.len() {
-                    msg.push_str(&format!(" Only the first {kept} fit in the saved list."));
-                }
-                set_message.set(Some((true, msg)));
-            }
+        };
+        set_flagged.set(Vec::new());
+
+        let request = LookupStartRequest {
+            turnstile_token: captcha_token.get(),
+            date: d.clone(),
+            addresses: addresses
+                .iter()
+                .map(|a| AddressRef { address: a.input.clone(), chain: a.chain })
+                .collect(),
+        };
+        // Tokens are single-use: reset the widget whatever happens next.
+        set_captcha_token.set(String::new());
+        if let Some(el) = captcha_ref.get_untracked() {
+            turnstile::reset(&el);
         }
+        set_busy.set(true);
+        set_message.set(None);
+
+        spawn_local(async move {
+            match api::lookup_start(&request).await {
+                Ok(resp) => {
+                    let kept = cookie::save(&addresses);
+                    set_quota.set(Some(Quota { remaining: resp.remaining, reset_at: resp.reset_at }));
+                    let n = request.addresses.len();
+                    let mut msg = format!(
+                        "Lookup accepted for {n} address{} on {d}. Balances arrive with build step 3.",
+                        if n == 1 { "" } else { "es" },
+                    );
+                    if kept < n {
+                        msg.push_str(&format!(" Only the first {kept} fit in the saved list."));
+                    }
+                    set_lookup.set(Some(ActiveLookup {
+                        token: resp.lookup_token,
+                        date: d,
+                        addresses: request.addresses,
+                        show_usd: show_usd.get_untracked(),
+                    }));
+                    set_message.set(Some((true, msg)));
+                }
+                Err(e) => {
+                    if let api::CallError::Api(body) = &e {
+                        if body.error == "daily_limit" {
+                            set_quota.set(Some(Quota {
+                                remaining: 0,
+                                reset_at: body.reset_at.clone().unwrap_or_default(),
+                            }));
+                        }
+                    }
+                    set_message.set(Some((false, e.user_message())));
+                }
+            }
+            set_busy.set(false);
+        });
     };
 
     let on_clear = move |_| {
@@ -85,7 +161,9 @@ fn App() -> impl IntoView {
         <header class="top">
             <h1>"Wayback Wallet"</h1>
             <p class="quota">
-                "Lookups left today: " <strong>"–"</strong> {format!(" of {DAILY_LOOKUPS}")}
+                "Lookups left today: "
+                <strong>{move || quota.get().map_or("–".to_string(), |q| q.remaining.to_string())}</strong>
+                {format!(" of {DAILY_LOOKUPS}")}
                 <span class="muted">" · resets 00:00 UTC"</span>
             </p>
         </header>
@@ -143,10 +221,12 @@ fn App() -> impl IntoView {
                     "Show USD values"
                 </label>
 
-                <div class="captcha" aria-label="Captcha">"Captcha (Cloudflare Turnstile) goes here in build step 2."</div>
+                <div class="captcha" node_ref=captcha_ref aria-label="Captcha"></div>
 
                 <div class="actions">
-                    <button type="submit" class="primary" disabled=move || !can_submit.get()>"Look up"</button>
+                    <button type="submit" class="primary" disabled=move || !can_submit.get()>
+                        {move || if busy.get() { "Starting…" } else { "Look up" }}
+                    </button>
                     <button type="button" class="secondary" on:click=on_clear>"Clear saved addresses"</button>
                 </div>
 

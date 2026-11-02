@@ -1,0 +1,5 @@
+# Copy to .dev.vars for `wrangler dev`. Never commit .dev.vars.
+HMAC_SECRET=dev-only-change-me
+# Cloudflare's published Turnstile test secret: always passes.
+# Use 2x0000000000000000000000000000000AA to test the "always fails" path.
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA

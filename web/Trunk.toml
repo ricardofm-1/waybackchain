@@ -1,0 +1,4 @@
+# `trunk serve` proxies /api to `wrangler dev`, so the page and the API share
+# an origin in development, just as they will on Cloudflare Pages.
+[[proxy]]
+backend = "http://127.0.0.1:8787/api/"

@@ -1,0 +1,22 @@
+name = "wayback-worker"
+main = "build/worker/shim.mjs"
+compatibility_date = "2026-10-01"
+
+[build]
+command = "worker-build --release"
+
+[[durable_objects.bindings]]
+name = "LIMITER"
+class_name = "Limiter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Limiter"]
+
+[vars]
+# The site origin allowed by CORS. Same-origin deploys (Pages + Worker route
+# on one domain) don't need it; the dev setup proxies /api through Trunk.
+ALLOWED_ORIGIN = "http://127.0.0.1:8080"
+
+# Secrets (set with `wrangler secret put NAME`; locally in .dev.vars):
+#   HMAC_SECRET, TURNSTILE_SECRET
