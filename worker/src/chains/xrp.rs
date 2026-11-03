@@ -10,7 +10,9 @@
 //! rate-limited server says `slowDown`; those move on to the next server.
 
 use super::{warn, RawHoldings, RawToken};
+use crate::money::parse_decimal;
 use crate::upstream::{JsonSource, UpstreamError};
+#[cfg(test)]
 use alloy_primitives::U256;
 use serde_json::{json, Value};
 
@@ -126,38 +128,6 @@ pub fn currency_text(code: &str) -> String {
     }
 }
 
-/// Positive decimal string (plain or scientific, as rippled prints IOU
-/// amounts) → (integer mantissa, decimals). `None` for zero, negative,
-/// malformed, or dust beyond 77 decimals.
-pub fn parse_decimal(s: &str) -> Option<(U256, u8)> {
-    let s = s.trim();
-    if s.starts_with('-') {
-        return None;
-    }
-    let (num, exp) = match s.split_once(['e', 'E']) {
-        Some((n, e)) => (n, e.trim_start_matches('+').parse::<i32>().ok()?),
-        None => (s, 0),
-    };
-    let (int, frac) = num.split_once('.').unwrap_or((num, ""));
-    if !(int.bytes().all(|b| b.is_ascii_digit()) && frac.bytes().all(|b| b.is_ascii_digit())) {
-        return None;
-    }
-    let mut digits = format!("{int}{frac}");
-    let mut decimals = frac.len() as i32 - exp;
-    if decimals < 0 {
-        digits.push_str(&"0".repeat((-decimals) as usize));
-        decimals = 0;
-    }
-    if decimals > 77 {
-        return None;
-    }
-    let digits = digits.trim_start_matches('0');
-    if digits.is_empty() {
-        return None;
-    }
-    Some((U256::from_str_radix(digits, 10).ok()?, decimals as u8))
-}
-
 /// `nodes` are tried in order for every call (primary first).
 pub async fn get_holdings<S: JsonSource>(
     nodes: &[S],
@@ -234,17 +204,6 @@ mod tests {
     use super::*;
     use futures::executor::block_on;
     use std::cell::RefCell;
-
-    #[test]
-    fn decimals_plain_and_scientific() {
-        assert_eq!(parse_decimal("10.5"), Some((U256::from(105u64), 1)));
-        assert_eq!(parse_decimal("1.23e-5"), Some((U256::from(123u64), 7)));
-        assert_eq!(parse_decimal("2e3"), Some((U256::from(2000u64), 0)));
-        assert_eq!(parse_decimal("0"), None);
-        assert_eq!(parse_decimal("-4.2"), None);
-        assert_eq!(parse_decimal("1e-90"), None);
-        assert_eq!(parse_decimal("abc"), None);
-    }
 
     #[test]
     fn currency_codes() {

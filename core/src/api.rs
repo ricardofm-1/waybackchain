@@ -41,6 +41,13 @@ pub struct LookupStartResponse {
 pub struct LookupAddressRequest {
     pub lookup_token: String,
     pub address: String,
+    /// Add indicative USD values (default on).
+    #[serde(default = "yes")]
+    pub with_usd: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

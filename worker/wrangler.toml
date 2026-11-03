@@ -13,6 +13,13 @@ class_name = "Limiter"
 tag = "v1"
 new_sqlite_classes = ["Limiter"]
 
+# Result and price cache. Locally `wrangler dev` simulates it; before
+# deploying, create the namespace (`npx wrangler kv namespace create CACHE`)
+# and put its id here.
+[[kv_namespaces]]
+binding = "CACHE"
+id = "local-dev-cache"
+
 [vars]
 # The site origin allowed by CORS. Same-origin deploys (Pages + Worker route
 # on one domain) don't need it; the dev setup proxies /api through Trunk.

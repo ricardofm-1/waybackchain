@@ -4,8 +4,11 @@
 //! add CORS and `Set-Cookie`. Logs carry route, status and duration only —
 //! never addresses or IPs.
 
+mod cache;
 mod captcha;
 mod chains;
+mod money;
+mod prices;
 mod ratelimit;
 mod sid;
 mod time;
@@ -258,7 +261,19 @@ async fn lookup_address(ctx: &Ctx, body: &str) -> Result<Response> {
         .and_then(|v| v.to_string().parse().ok())
         .unwrap_or(DEFAULT_SUBREQUEST_BUDGET);
     let http = upstream::Http::new(budget, ADDRESS_TIME_LIMIT);
+    let now = (ctx.now_ms / 1000) as i64;
+    let kv = ctx.env.kv("CACHE").ok();
+    let final_date = cache::is_final(cutoff, now);
+    let cache_key = cache::key(&ctx.secret, d.chain.ticker(), &d.canonical, &claims.date);
+    let cached = match (&kv, final_date) {
+        (Some(kv), true) => cache::get(kv, &cache_key).await,
+        _ => None,
+    };
 
+    let result: std::result::Result<Holdings, upstream::UpstreamError> = if let Some(mut h) = cached {
+        h.address = d.input.clone();
+        Ok(h)
+    } else {
     let (symbol, decimals, result) = match d.chain {
         Chain::Btc => {
             let src = upstream::Rest { http: &http, bases: chains::btc::PROVIDERS, headers: vec![] };
@@ -311,6 +326,29 @@ async fn lookup_address(ctx: &Ctx, body: &str) -> Result<Response> {
             (chains::ada::SYMBOL, chains::ada::DECIMALS, r)
         }
     };
+    let result = result.map(|raw| Holdings {
+        chain: d.chain,
+        address: d.input.clone(),
+        as_of_block: raw.as_of_block.map(|b| b.to_string()),
+        as_of_time: format!("{}T23:59:59Z", claims.date),
+        native: raw.native.map(|v| Amount { symbol: symbol.into(), amount: format_units(v, decimals), usd: None }),
+        tokens: raw
+            .tokens
+            .into_iter()
+            .map(|t| TokenHolding {
+                contract: t.contract,
+                symbol: t.symbol,
+                amount: format_units_str(&t.amount.to_string(), t.decimals),
+                usd: None,
+            })
+            .collect(),
+        warnings: raw.warnings.into_iter().map(String::from).collect(),
+    });
+    if let (Ok(h), Some(kv), true) = (&result, &kv, final_date) {
+        cache::put(kv, &cache_key, h).await;
+    }
+    result
+    };
 
     let total = claims.a.len();
     let report = |ok: bool| async move {
@@ -328,26 +366,12 @@ async fn lookup_address(ctx: &Ctx, body: &str) -> Result<Response> {
     };
 
     match result {
-        Ok(raw) => {
+        Ok(mut h) => {
             report(true).await;
-            Response::from_json(&Holdings {
-                chain: d.chain,
-                address: d.input,
-                as_of_block: raw.as_of_block.map(|b| b.to_string()),
-                as_of_time: format!("{}T23:59:59Z", claims.date),
-                native: raw.native.map(|v| Amount { symbol: symbol.into(), amount: format_units(v, decimals), usd: None }),
-                tokens: raw
-                    .tokens
-                    .into_iter()
-                    .map(|t| TokenHolding {
-                        contract: t.contract,
-                        symbol: t.symbol,
-                        amount: format_units_str(&t.amount.to_string(), t.decimals),
-                        usd: None,
-                    })
-                    .collect(),
-                warnings: raw.warnings.into_iter().map(String::from).collect(),
-            })
+            if input.with_usd {
+                add_prices(&http, kv.as_ref(), &mut h, &claims.date, cutoff, now).await;
+            }
+            Response::from_json(&h)
         }
         Err(e) => {
             console_error!("{} upstream error: {}", d.chain, e.label());
@@ -356,5 +380,29 @@ async fn lookup_address(ctx: &Ctx, body: &str) -> Result<Response> {
             }
             error(502, "upstream_error")
         }
+    }
+}
+
+/// Fills `usd` on the native amount and every token DefiLlama can price.
+async fn add_prices(
+    http: &upstream::Http,
+    kv: Option<&worker::kv::KvStore>,
+    h: &mut Holdings,
+    date: &str,
+    cutoff: i64,
+    now: i64,
+) {
+    let native_id = prices::coin_id(h.chain, None);
+    let token_ids: Vec<Option<String>> = h.tokens.iter().map(|t| prices::coin_id(h.chain, Some(&t.contract))).collect();
+    let ids: Vec<String> = native_id.iter().chain(token_ids.iter().flatten()).cloned().collect();
+    if ids.is_empty() {
+        return;
+    }
+    let found = prices::lookup(http, kv, &ids, date, cutoff, now).await;
+    if let (Some(n), Some(id)) = (h.native.as_mut(), native_id) {
+        n.usd = found.get(&id).and_then(|p| money::usd_value(&n.amount, p));
+    }
+    for (t, id) in h.tokens.iter_mut().zip(token_ids) {
+        t.usd = id.and_then(|id| found.get(&id)).and_then(|p| money::usd_value(&t.amount, p));
     }
 }

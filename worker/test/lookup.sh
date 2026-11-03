@@ -30,11 +30,20 @@ check "BTC balance at 2024-01-01 = 0.0034155" '"amount":"0.0034155"' "$(echo "$r
 b=$(echo "$r" | head -1 | grep -o '"asOfBlock":"[^"]*"' || true)
 check "asOfBlock = 823940 (or absent on fallback)" ok "$([[ -z "$b" || "$b" == '"asOfBlock":"823940"' ]] && echo ok || echo "$b")"
 [[ -z "$b" ]] && echo "     (note: mempool.space didn't answer; Blockstream fallback used)"
+check "BTC USD value at \$44,147" '"usd":"150.78"' "$(echo "$r" | head -1 | grep -o '"usd":"[^"]*"' | head -1)"
+# 2024-01-01 is a final date: the repeat comes from the KV cache, same body.
+t0=$(python3 -c 'import time; print(time.time())')
+r2=$(addr "$LIGHT")
+t1=$(python3 -c 'import time; print(time.time())')
+check "cached repeat is identical" same "$([[ "$(echo "$r" | head -1)" == "$(echo "$r2" | head -1)" ]] && echo same || echo different)"
+echo "     (first call vs cached repeat: $(python3 -c "print(round($t1-$t0,3))")s for the repeat)"
 r=$(addr "$ETH")
 check "ETH light address -> 200" 200 "$(echo "$r" | tail -1)"
 check "ETH balance at 2024-01-01" '"amount":"0.0918118932"' "$(echo "$r" | head -1 | grep -o '"amount":"[^"]*"' | head -1)"
 check "ETH asOfBlock = 18916001" '"asOfBlock":"18916001"' "$(echo "$r" | head -1 | grep -o '"asOfBlock":"[^"]*"')"
 check "QNT token = 13.170560770278419109" '"symbol":"QNT","amount":"13.170560770278419109"' "$(echo "$r" | head -1 | grep -o '"symbol":"QNT","amount":"[^"]*"')"
+check "QNT priced (13.17 × \$141.04)" '"symbol":"QNT","amount":"13.170560770278419109","usd":"1857.58"' "$(echo "$r" | head -1 | grep -o '"symbol":"QNT","amount":"[^"]*","usd":"[^"]*"')"
+check "spam token unpriced" 'no-usd' "$(echo "$r" | head -1 | python3 -c 'import sys,json; t=[x for x in json.load(sys.stdin)["tokens"] if x["symbol"].startswith("Visit")]; print("no-usd" if t and "usd" not in t[0] else t)')"
 r=$(addr "$SOL")
 check "SOL medium wallet -> 200" 200 "$(echo "$r" | tail -1)"
 # First activity is 2024-01-04, so on 2024-01-01 it held nothing.

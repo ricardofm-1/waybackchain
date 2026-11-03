@@ -148,3 +148,11 @@ table.tokens { width: 100%; border-collapse: collapse; margin-top: 10px; font-si
 table.tokens th, table.tokens td { text-align: left; padding: 4px 0; border-bottom: 1px solid var(--line); }
 table.tokens .num { text-align: right; font-variant-numeric: tabular-nums; }
 button.small { min-height: 36px; padding: 6px 14px; margin-top: 8px; }
+
+/* USD */
+.totals { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.grand-total { margin: 0; font-size: 1.05rem; }
+.grand-total strong { font-variant-numeric: tabular-nums; }
+.native .usd { color: var(--muted); font-size: 0.95rem; font-weight: 400; }
+label.check.small { margin-top: 2px; font-size: 0.9rem; }
+.card-body .hint { margin-top: 6px; }
