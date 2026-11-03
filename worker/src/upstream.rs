@@ -181,10 +181,11 @@ impl JsonSource for Etherscan<'_> {
     }
 }
 
-/// A JSON-RPC endpoint (URL includes the key, e.g. Alchemy's).
+/// A JSON-RPC endpoint (URL includes the key, e.g. Alchemy's), with
+/// optional fallback URLs tried when the previous one fails on our side.
 pub struct Rpc<'a> {
     pub http: &'a Http,
-    pub url: String,
+    pub urls: Vec<String>,
 }
 
 impl JsonSource for Rpc<'_> {
@@ -193,7 +194,15 @@ impl JsonSource for Rpc<'_> {
     }
 
     async fn post<T: DeserializeOwned>(&self, _path: &str, body: &serde_json::Value) -> Result<T, UpstreamError> {
-        self.http.post_json(&self.url, body).await
+        let mut last = UpstreamError::Network;
+        for url in &self.urls {
+            match self.http.post_json(url, body).await {
+                Ok(v) => return Ok(v),
+                Err(e) if e.is_our_side() => last = e,
+                Err(e) => return Err(e),
+            }
+        }
+        Err(last)
     }
 }
 
@@ -291,6 +300,7 @@ pub mod fixtures {
         async fn post<T: DeserializeOwned>(&self, path: &str, body: &serde_json::Value) -> Result<T, UpstreamError> {
             let request = serde_json::json!({ "method": "POST", "path": path, "body": body });
             let v = self.load_or_record(request, |(url, _)| {
+                std::thread::sleep(std::time::Duration::from_millis(400));
                 ureq::post(url.as_str())
                     .send_json(body)
                     .map_err(|e| e.to_string())?

@@ -271,13 +271,26 @@ async fn lookup_address(ctx: &Ctx, body: &str) -> Result<Response> {
                 return error(503, "chain_not_configured");
             };
             let es = upstream::Etherscan { http: &http, key: es_key.to_string() };
-            let node = upstream::Rpc {
-                http: &http,
-                url: format!("https://eth-mainnet.g.alchemy.com/v2/{alchemy_key}"),
-            };
+            let node = upstream::Rpc { http: &http, urls: vec![format!("https://eth-mainnet.g.alchemy.com/v2/{alchemy_key}")] };
             let now = (ctx.now_ms / 1000) as i64;
             let r = chains::eth::get_holdings(&es, &node, &d.canonical, cutoff, now, chains::eth::Limits::DEFAULT).await;
             (chains::eth::SYMBOL, chains::eth::DECIMALS, r)
+        }
+        Chain::Sol => {
+            let Ok(key) = ctx.env.secret("HELIUS_KEY") else {
+                console_error!("SOL provider key missing");
+                return error(503, "chain_not_configured");
+            };
+            let helius_url = format!("https://mainnet.helius-rpc.com/?api-key={key}");
+            let helius = upstream::Rpc { http: &http, urls: vec![helius_url.clone()] };
+            // Public RPC only as a fallback: its ~100 req / 10 s limit is per
+            // IP, and every call comes from the Worker.
+            let node = upstream::Rpc {
+                http: &http,
+                urls: vec![helius_url, "https://api.mainnet-beta.solana.com".into()],
+            };
+            let r = chains::sol::get_holdings(&helius, &node, &d.canonical, cutoff, chains::sol::Limits::DEFAULT).await;
+            (chains::sol::SYMBOL, chains::sol::DECIMALS, r)
         }
         _ => return error(501, "chain_not_supported_yet"),
     };

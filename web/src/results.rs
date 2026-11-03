@@ -85,6 +85,9 @@ fn warning_text(code: &str) -> String {
         }
         "tokens_incomplete" => "This address has a very long token history; some tokens may be missing.".into(),
         "token_cap_reached" => "This address has held more token types than we check; only the first 300 are shown.".into(),
+        "sol_closed_accounts" => {
+            "Solana token accounts that were closed before today can't be found, so tokens held in them on that date may be missing.".into()
+        }
         other => format!("Note: {other}"),
     }
 }

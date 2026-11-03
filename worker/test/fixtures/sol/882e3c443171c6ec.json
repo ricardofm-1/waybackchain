@@ -1,0 +1,1 @@
+{"request":{"body":{"id":1,"jsonrpc":"2.0","method":"getTokenAccounts","params":{"limit":51,"options":{"showZeroBalance":true},"owner":"6dice3eV5uDG2H2YApBg3Hz98G18RjR6bszm9NALrHgB"}},"method":"POST","path":""},"response":{"id":1,"jsonrpc":"2.0","result":{"last_indexed_slot":464875240,"limit":51,"token_accounts":[],"total":0}}}
