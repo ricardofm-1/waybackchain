@@ -19,4 +19,4 @@ new_sqlite_classes = ["Limiter"]
 ALLOWED_ORIGIN = "http://127.0.0.1:8080"
 
 # Secrets (set with `wrangler secret put NAME`; locally in .dev.vars):
-#   HMAC_SECRET, TURNSTILE_SECRET, ETHERSCAN_KEY, ALCHEMY_KEY
+#   HMAC_SECRET, TURNSTILE_SECRET, ALCHEMY_KEY, HELIUS_KEY, BLOCKFROST_KEY

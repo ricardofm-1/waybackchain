@@ -1,0 +1,1 @@
+{"request":{"body":{"id":1,"jsonrpc":"2.0","method":"alchemy_getAssetTransfers","params":[{"category":["erc20"],"excludeZeroValue":false,"fromBlock":"0x0","maxCount":"0x3e8","toAddress":"0x0136c1c53c6b9c55bce7e331a209c24912379d2f","toBlock":"0x7830b6","withMetadata":false}]},"method":"POST","path":""},"response":{"id":1,"jsonrpc":"2.0","result":{"transfers":[]}}}

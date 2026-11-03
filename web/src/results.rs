@@ -93,6 +93,9 @@ fn warning_text(code: &str) -> String {
         "likely_exchange" => {
             "This address holds a very large balance and is probably an exchange account shared by many customers.".into()
         }
+        "ada_payment_address_only" => {
+            "This is one payment address. A Cardano wallet usually has several, and unwithdrawn staking rewards aren't included.".into()
+        }
         other => format!("Note: {other}"),
     }
 }

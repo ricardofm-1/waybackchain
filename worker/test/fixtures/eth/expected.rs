@@ -1,14 +1,15 @@
 // Expected values for the recorded ETH fixtures (included into
 // `chains::eth::recorded`). Token balances were cross-checked against an
 // independent sum of transfers with test/check_eth.py; ETH balances come from
-// Alchemy's archive node.
+// Alchemy's archive node. These values were first recorded through Etherscan
+// and still hold through the Alchemy-only path.
 
 /// 7 transfers of 6 tokens (3 of them "claim rewards" spam), 2021–2025.
 const LIGHT: &str = "0xe4effbc36b1614d708c9d0a9a7affdf79aaccb9f";
 /// vitalik.eth, with tiny limits so paging and caps run on small fixtures.
 const BUSY: &str = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045";
-const BUSY_LIMITS: Limits = Limits { tokentx_page: 20, max_pages: 2, max_tokens: 300 };
-const BUSY_CAP: Limits = Limits { tokentx_page: 20, max_pages: 2, max_tokens: 2 };
+const BUSY_LIMITS: Limits = Limits { transfers_page: 20, max_pages: 2, max_tokens: 300 };
+const BUSY_CAP: Limits = Limits { transfers_page: 20, max_pages: 2, max_tokens: 2 };
 
 const QNT: &str = "0x4a220E6096B25EADb88358cb44068A3248254675";
 const REEF: &str = "0xFE3E6a25e6b192A42a44ecDDCd13796471735ACf";

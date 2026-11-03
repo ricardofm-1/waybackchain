@@ -3,6 +3,9 @@ HMAC_SECRET=dev-only-change-me
 # Cloudflare's published Turnstile test secret: always passes.
 # Use 2x0000000000000000000000000000000AA to test the "always fails" path.
 TURNSTILE_SECRET=1x0000000000000000000000000000000AA
-# Ethereum (step 4): https://etherscan.io/apis and https://dashboard.alchemy.com
-ETHERSCAN_KEY=
+# Ethereum: https://dashboard.alchemy.com (an app on Ethereum Mainnet)
 ALCHEMY_KEY=
+# Solana: https://dashboard.helius.dev
+HELIUS_KEY=
+# Cardano: https://blockfrost.io (a Cardano mainnet project)
+BLOCKFROST_KEY=

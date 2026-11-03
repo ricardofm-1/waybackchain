@@ -1,9 +1,8 @@
 //! XRP Ledger via public full-history servers (no key).
 //!
 //! 1. Find the last ledger that closed at or before T. There is no
-//!    date-to-ledger API, so search `ledger` by close time. Ledgers close
-//!    every ~4 s, so interpolation search converges in a handful of calls
-//!    (with a bisection step every third round to bound the worst case).
+//!    date-to-ledger API, so search `ledger` by close time with
+//!    `last_at_or_before` (interpolation; ledgers close every ~4 s).
 //! 2. `account_info` at that ledger for XRP (drops), `account_lines` (paged)
 //!    for issued tokens: a positive balance is a holding.
 //!
@@ -101,27 +100,12 @@ async fn ledger_at<S: JsonSource>(nodes: &[S], cutoff: i64) -> Result<Option<u64
     if latest.1 <= cutoff {
         return Ok(Some(latest.0));
     }
-    // Invariant: lo closes at or before the cutoff, hi after it.
-    let (mut lo, mut hi) = ((FIRST_LEDGER, FIRST_CLOSE), latest);
-    for step in 0..MAX_SEARCH_STEPS {
-        if hi.0 - lo.0 <= 1 {
-            return Ok(Some(lo.0));
-        }
-        let guess = if step % 3 == 2 || hi.1 <= lo.1 {
-            lo.0 + (hi.0 - lo.0) / 2
-        } else {
-            let frac = (cutoff - lo.1) as f64 / (hi.1 - lo.1) as f64;
-            lo.0 + ((hi.0 - lo.0) as f64 * frac) as u64
-        }
-        .clamp(lo.0 + 1, hi.0 - 1);
-        let probe = ledger(nodes, json!(guess)).await?;
-        if probe.1 <= cutoff {
-            lo = probe;
-        } else {
-            hi = probe;
-        }
-    }
-    Err(UpstreamError::Budget)
+    let lo = (FIRST_LEDGER, FIRST_CLOSE);
+    let index = super::last_at_or_before(lo, latest, cutoff, MAX_SEARCH_STEPS, |n| async move {
+        ledger(nodes, json!(n)).await.map(|(_, t)| t)
+    })
+    .await?;
+    Ok(Some(index))
 }
 
 /// Currency code as text: 3-char codes as-is; 40-hex codes decoded when

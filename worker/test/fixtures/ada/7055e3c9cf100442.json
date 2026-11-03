@@ -1,0 +1,1 @@
+{"request":{"method":"GET","path":"/addresses/addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8"},"response":{"address":"addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8","amount":[{"quantity":"0","unit":"lovelace"}],"script":false,"stake_address":null,"type":"shelley"}}

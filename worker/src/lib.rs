@@ -261,19 +261,17 @@ async fn lookup_address(ctx: &Ctx, body: &str) -> Result<Response> {
 
     let (symbol, decimals, result) = match d.chain {
         Chain::Btc => {
-            let src = upstream::Rest { http: &http, bases: chains::btc::PROVIDERS };
+            let src = upstream::Rest { http: &http, bases: chains::btc::PROVIDERS, headers: vec![] };
             let r = chains::btc::get_holdings(&src, &d.canonical, cutoff, chains::btc::MAX_TXS_AFTER_T).await;
             (chains::btc::SYMBOL, chains::btc::DECIMALS, r)
         }
         Chain::Eth => {
-            let (Ok(es_key), Ok(alchemy_key)) = (ctx.env.secret("ETHERSCAN_KEY"), ctx.env.secret("ALCHEMY_KEY")) else {
-                console_error!("ETH provider keys missing");
+            let Ok(alchemy_key) = ctx.env.secret("ALCHEMY_KEY") else {
+                console_error!("ETH provider key missing");
                 return error(503, "chain_not_configured");
             };
-            let es = upstream::Etherscan { http: &http, key: es_key.to_string() };
             let node = upstream::Rpc { http: &http, urls: vec![format!("https://eth-mainnet.g.alchemy.com/v2/{alchemy_key}")] };
-            let now = (ctx.now_ms / 1000) as i64;
-            let r = chains::eth::get_holdings(&es, &node, &d.canonical, cutoff, now, chains::eth::Limits::DEFAULT).await;
+            let r = chains::eth::get_holdings(&node, &d.canonical, cutoff, chains::eth::Limits::DEFAULT).await;
             (chains::eth::SYMBOL, chains::eth::DECIMALS, r)
         }
         Chain::Sol => {
@@ -302,7 +300,16 @@ async fn lookup_address(ctx: &Ctx, body: &str) -> Result<Response> {
             let r = chains::xrp::get_holdings(&nodes, &d.canonical, cutoff, chains::xrp::Limits::DEFAULT).await;
             (chains::xrp::SYMBOL, chains::xrp::DECIMALS, r)
         }
-        _ => return error(501, "chain_not_supported_yet"),
+        Chain::Ada => {
+            let Ok(key) = ctx.env.secret("BLOCKFROST_KEY") else {
+                console_error!("ADA provider key missing");
+                return error(503, "chain_not_configured");
+            };
+            const BLOCKFROST: &[&str] = &[chains::ada::BASE];
+            let src = upstream::Rest { http: &http, bases: BLOCKFROST, headers: vec![("project_id", key.to_string())] };
+            let r = chains::ada::get_holdings(&src, &d.canonical, cutoff, chains::ada::Limits::DEFAULT).await;
+            (chains::ada::SYMBOL, chains::ada::DECIMALS, r)
+        }
     };
 
     let total = claims.a.len();

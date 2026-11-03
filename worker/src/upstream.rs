@@ -77,15 +77,20 @@ impl Http {
 
     /// GET with up to two retries (exponential backoff) on 429 / 5xx /
     /// network errors. Each attempt is cut off at the remaining time.
-    pub async fn get_json<T: DeserializeOwned>(&self, url: &str) -> Result<T, UpstreamError> {
-        self.send_json(url, None).await
+    pub async fn get_json<T: DeserializeOwned>(&self, url: &str, headers: &[(&str, String)]) -> Result<T, UpstreamError> {
+        self.send_json(url, None, headers).await
     }
 
     pub async fn post_json<T: DeserializeOwned>(&self, url: &str, body: &serde_json::Value) -> Result<T, UpstreamError> {
-        self.send_json(url, Some(body.to_string())).await
+        self.send_json(url, Some(body.to_string()), &[]).await
     }
 
-    async fn send_json<T: DeserializeOwned>(&self, url: &str, body: Option<String>) -> Result<T, UpstreamError> {
+    async fn send_json<T: DeserializeOwned>(
+        &self,
+        url: &str,
+        body: Option<String>,
+        extra: &[(&str, String)],
+    ) -> Result<T, UpstreamError> {
         let mut last = UpstreamError::Network;
         for attempt in 0..=RETRIES {
             if attempt > 0 {
@@ -97,7 +102,7 @@ impl Http {
             self.budget.set(self.budget.get() - 1);
             let remaining = self.deadline_ms.saturating_sub(Date::now().as_millis());
             let timeout = Duration::from_millis(remaining.min(PER_REQUEST_TIMEOUT_MS));
-            match self.attempt(url, body.as_deref(), timeout).await {
+            match self.attempt(url, body.as_deref(), extra, timeout).await {
                 Ok(v) => return Ok(v),
                 Err(UpstreamError::Timeout) => return Err(UpstreamError::Timeout),
                 Err(e) if e.is_our_side() => last = e,
@@ -107,10 +112,19 @@ impl Http {
         Err(last)
     }
 
-    async fn attempt<T: DeserializeOwned>(&self, url: &str, body: Option<&str>, timeout: Duration) -> Result<T, UpstreamError> {
+    async fn attempt<T: DeserializeOwned>(
+        &self,
+        url: &str,
+        body: Option<&str>,
+        extra: &[(&str, String)],
+        timeout: Duration,
+    ) -> Result<T, UpstreamError> {
         let headers = Headers::new();
         let _ = headers.set("Accept", "application/json");
         let _ = headers.set("User-Agent", "wayback-wallet/0.1");
+        for (k, v) in extra {
+            let _ = headers.set(k, v);
+        }
         let mut init = RequestInit::new();
         match body {
             Some(b) => {
@@ -144,17 +158,19 @@ impl Http {
     }
 }
 
-/// Esplora-style REST API with ordered fallback providers.
+/// REST API with ordered fallback providers and optional extra headers
+/// (e.g. Blockfrost's `project_id`).
 pub struct Rest<'a> {
     pub http: &'a Http,
     pub bases: &'static [&'static str],
+    pub headers: Vec<(&'static str, String)>,
 }
 
 impl JsonSource for Rest<'_> {
     async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, UpstreamError> {
         let mut last = UpstreamError::Network;
         for base in self.bases {
-            match self.http.get_json(&format!("{base}{path}")).await {
+            match self.http.get_json(&format!("{base}{path}"), &self.headers).await {
                 Ok(v) => return Ok(v),
                 // Our side (provider trouble): try the next provider.
                 Err(e) if e.is_our_side() => last = e,
@@ -163,21 +179,6 @@ impl JsonSource for Rest<'_> {
             }
         }
         Err(last)
-    }
-}
-
-/// Etherscan API V2 (Ethereum mainnet). `path` is the query string without
-/// the key, e.g. `module=block&action=getblocknobytime&...`.
-pub struct Etherscan<'a> {
-    pub http: &'a Http,
-    pub key: String,
-}
-
-impl JsonSource for Etherscan<'_> {
-    async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, UpstreamError> {
-        self.http
-            .get_json(&format!("https://api.etherscan.io/v2/api?chainid=1&{path}&apikey={}", self.key))
-            .await
     }
 }
 
@@ -238,6 +239,8 @@ pub mod fixtures {
         dir: PathBuf,
         /// Live base: for GET, prefix + path + suffix; for POST, the URL.
         live: Option<(String, String)>,
+        /// Header carrying the key on live calls (never stored).
+        header: Option<(String, String)>,
     }
 
     impl Recorded {
@@ -249,7 +252,16 @@ pub mod fixtures {
                 .then(|| if live_env.is_empty() { Some(String::new()) } else { std::env::var(live_env).ok() })
                 .flatten()
                 .map(|k| make_live(&k));
-            Self { dir: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures").join(chain), live }
+            Self { dir: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures").join(chain), live, header: None }
+        }
+
+        /// Like `new`, but the key travels in header `name` on live calls.
+        pub fn with_key_header(chain: &str, live_env: &str, base: &str, name: &str) -> Self {
+            let mut r = Self::new(chain, live_env, |_| (base.to_string(), String::new()));
+            if r.live.is_some() {
+                r.header = std::env::var(live_env).ok().map(|k| (name.to_string(), k));
+            }
+            r
         }
 
         fn file(&self, request: &serde_json::Value) -> PathBuf {
@@ -288,13 +300,20 @@ pub mod fixtures {
             let request = serde_json::json!({ "method": "GET", "path": path });
             let v = self.load_or_record(request, |(pre, suf)| {
                 std::thread::sleep(std::time::Duration::from_millis(400));
-                ureq::get(format!("{pre}{path}{suf}"))
-                    .call()
-                    .map_err(|e| e.to_string())?
-                    .body_mut()
-                    .read_json()
-                    .map_err(|e| e.to_string())
+                let mut req = ureq::get(format!("{pre}{path}{suf}"));
+                if let Some((k, v)) = &self.header {
+                    req = req.header(k.as_str(), v.as_str());
+                }
+                match req.call() {
+                    Ok(mut resp) => resp.body_mut().read_json().map_err(|e| e.to_string()),
+                    // Record 404s too: some APIs answer "never seen" that way.
+                    Err(ureq::Error::StatusCode(404)) => Ok(serde_json::json!({ "__status": 404 })),
+                    Err(e) => Err(e.to_string()),
+                }
             })?;
+            if v.get("__status").and_then(|s| s.as_u64()) == Some(404) {
+                return Err(UpstreamError::Status(404));
+            }
             serde_json::from_value(v).map_err(|_| UpstreamError::Decode)
         }
 
