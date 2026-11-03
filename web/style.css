@@ -189,3 +189,40 @@ label.check.small { margin-top: 2px; font-size: 0.9rem; }
 .legend-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .legend-share, .legend-usd { font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
 .legend-share { color: var(--fg); }
+
+/* Results header + PDF export */
+.results-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.results-head button { margin-top: 0; }
+.print-only { display: none; }
+
+/* A4, white, the site's light palette whatever the screen theme. */
+@page { size: A4; margin: 14mm 14mm 16mm; }
+@media print {
+  :root {
+    --bg: #ffffff; --fg: #1c1c1a; --muted: #5f5f5a; --line: #d6d6d0; --card: #ffffff;
+    --accent: #2f5bd3; --bad: #b3261e; --bad-bg: #fdecea; --ok-bg: #e8f3ec;
+    --cat-1: #2a78d6; --cat-2: #eb6834; --cat-3: #1baf7a;
+    --cat-4: #eda100; --cat-5: #e87ba4; --cat-6: #008300; --cat-other: #a3a39c;
+    color-scheme: light;
+  }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { background: #ffffff !important; color: var(--fg); }
+  body { padding: 0; font-size: 10.5pt; }
+  header.top, main, footer, .no-print { display: none !important; }
+  .print-only { display: block !important; }
+  .print-head { border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 4px; }
+  .print-brand { margin: 0; font-size: 15pt; font-weight: 700; }
+  .print-meta, .print-foot { margin: 2px 0 0; color: var(--muted); font-size: 8.5pt; }
+  .print-foot { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 6px; }
+  .results { max-width: none; padding: 0; gap: 6px; }
+  .results h2 { font-size: 12.5pt; }
+  .summary, .card { border-color: var(--line); background: #ffffff; }
+  .card, .donut, tr, .warning { break-inside: avoid; }
+  .card summary { cursor: default; }
+  .warning { background: #fff4e0 !important; color: #6b4200 !important; }
+  .state.warn { color: #a15c00 !important; }
+  .donut .slice.dim { opacity: 1; }
+  .donut-legend li.active { background: transparent; }
+  .table-scroll { overflow: visible; }
+  .addr, .meta { overflow-wrap: anywhere; }
+}

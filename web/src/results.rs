@@ -418,7 +418,7 @@ fn Summary(
                 view! { <p class="hint">{format!("{n} address{} not included (error, or too much activity to replay).", if n == 1 { "" } else { "es" })}</p> }
             })}
             {show_usd.then(|| view! {
-                <label class="check small">
+                <label class="check small no-print">
                     <input
                         type="checkbox"
                         prop:checked=move || show_unpriced.get()
@@ -430,6 +430,39 @@ fn Summary(
             })}
         </div>
     }
+}
+
+/// Opens the browser's print dialog (where "Save as PDF" lives) with the
+/// print stylesheet: A4, white background, form hidden, every card open.
+/// The document title becomes the suggested file name.
+fn export_pdf(date: &str) {
+    let Some(window) = web_sys::window() else { return };
+    let Some(doc) = window.document() else { return };
+    if let Ok(cards) = doc.query_selector_all("details.card") {
+        for i in 0..cards.length() {
+            if let Some(el) = cards.item(i).and_then(|n| wasm_bindgen::JsCast::dyn_into::<web_sys::Element>(n).ok()) {
+                let _ = el.set_attribute("open", "");
+            }
+        }
+    }
+    let title = doc.title();
+    doc.set_title(&format!("wayback-wallet-{date}"));
+    // print() blocks until the dialog closes in every major browser.
+    let _ = window.print();
+    doc.set_title(&title);
+}
+
+/// "2026-11-03 14:05 UTC", for the printed header.
+fn now_utc() -> String {
+    let d = js_sys::Date::new_0();
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02} UTC",
+        d.get_utc_full_year(),
+        d.get_utc_month() + 1,
+        d.get_utc_date(),
+        d.get_utc_hours(),
+        d.get_utc_minutes()
+    )
 }
 
 #[component]
@@ -469,10 +502,29 @@ pub fn Results(lookup: ActiveLookup) -> impl IntoView {
     let show_unpriced = RwSignal::new(false);
     let token = lookup.token.clone();
 
+    let date = lookup.date.clone();
+    let printed_at = RwSignal::new(String::new());
+
     view! {
         <section class="results" aria-live="polite">
-            <h2>{format!("Holdings at 23:59:59 UTC on {}", lookup.date)}</h2>
-            <p class="progress">{move || format!("{} of {total} addresses done", done_count.get())}</p>
+            <div class="print-only print-head">
+                <p class="print-brand">"Wayback Wallet"</p>
+                <p class="print-meta">{move || format!("{total} addresses · generated {}", printed_at.get())}</p>
+            </div>
+            <div class="results-head">
+                <h2>{format!("Holdings at 23:59:59 UTC on {}", lookup.date)}</h2>
+                <button
+                    type="button"
+                    class="secondary small no-print"
+                    disabled=move || !all_done.get()
+                    title=move || if all_done.get() { "Save these results as an A4 PDF" } else { "Available when every address has finished" }
+                    on:click=move |_| {
+                        printed_at.set(now_utc());
+                        export_pdf(&date);
+                    }
+                >"Save as PDF"</button>
+            </div>
+            <p class="progress no-print">{move || format!("{} of {total} addresses done", done_count.get())}</p>
             <Summary cards=cards left_out=left_out all_done=all_done show_usd=show_usd show_unpriced=show_unpriced />
             <h3 class="detail-head">"By address"</h3>
             {lookup
@@ -480,6 +532,10 @@ pub fn Results(lookup: ActiveLookup) -> impl IntoView {
                 .into_iter()
                 .map(|row| view! { <Card row=row token=token.clone() show_usd=show_usd show_unpriced=show_unpriced /> })
                 .collect_view()}
+            <p class="print-only print-foot">
+                "Balances at 23:59:59 UTC from public blockchain APIs; may be incomplete for very active addresses. "
+                {show_usd.then_some("USD values are indicative (DefiLlama) and exclude tokens without a price.")}
+            </p>
         </section>
     }
 }
@@ -565,7 +621,7 @@ fn Card(row: Row, token: Arc<str>, show_usd: bool, show_unpriced: RwSignal<bool>
                 <div class="card-body">
                     <p class="error-text">{message}</p>
                     {retryable.then(|| view! {
-                        <button type="button" class="secondary small" on:click=move |_| {
+                        <button type="button" class="secondary small no-print" on:click=move |_| {
                             let (row, token) = (row.clone(), token.clone());
                             spawn_local(async move { fetch_row(&token, &row, show_usd).await });
                         }>"Retry"</button>
