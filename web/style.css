@@ -150,9 +150,18 @@ table.tokens .num { text-align: right; font-variant-numeric: tabular-nums; }
 button.small { min-height: 36px; padding: 6px 14px; margin-top: 8px; }
 
 /* USD */
-.totals { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
 .grand-total { margin: 0; font-size: 1.05rem; }
 .grand-total strong { font-variant-numeric: tabular-nums; }
 .native .usd { color: var(--muted); font-size: 0.95rem; font-weight: 400; }
 label.check.small { margin-top: 2px; font-size: 0.9rem; }
 .card-body .hint { margin-top: 6px; }
+
+/* Totals across addresses */
+.summary { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.summary-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; }
+.summary h3, .detail-head { margin: 0; font-size: 1rem; }
+.detail-head { margin-top: 8px; }
+.table-scroll { overflow-x: auto; }
+.summary-table td:first-child { white-space: nowrap; }
+.summary-table tr.native-row td { font-weight: 600; }
+.badge.mini { font-size: 0.65rem; padding: 0 5px; vertical-align: 1px; }

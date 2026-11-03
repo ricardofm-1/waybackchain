@@ -7,7 +7,9 @@ use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::Arc;
+use wayback_core::amount::add_decimal_str;
 use wayback_core::api::{AddressRef, Holdings, LookupAddressRequest, TokenHolding};
+use wayback_core::Chain;
 
 /// Address calls in flight at once.
 const CONCURRENCY: usize = 4;
@@ -146,6 +148,135 @@ fn card_cents(h: &Holdings) -> u128 {
     native + h.tokens.iter().filter_map(|t| t.usd.as_deref().and_then(cents)).sum::<u128>()
 }
 
+/// One asset summed across every finished address.
+#[derive(Clone, Debug, PartialEq)]
+struct AggRow {
+    chain: Chain,
+    symbol: String,
+    /// Token contract / mint / currency.issuer; `None` for the native coin.
+    contract: Option<String>,
+    amount: String,
+    cents: Option<u128>,
+    addresses: usize,
+}
+
+/// Natives first in chain order, then tokens by USD value (unpriced last).
+fn aggregate(cards: &[Holdings], include_unpriced: bool) -> Vec<AggRow> {
+    let mut rows: Vec<AggRow> = Vec::new();
+    let mut add = |chain: Chain, symbol: &str, contract: Option<&str>, amount: &str, usd: Option<&str>| {
+        let c = usd.and_then(cents);
+        match rows.iter_mut().find(|r| r.chain == chain && r.contract.as_deref() == contract) {
+            Some(r) => {
+                r.amount = add_decimal_str(&r.amount, amount).unwrap_or_else(|| r.amount.clone());
+                r.cents = match (r.cents, c) {
+                    (Some(a), Some(b)) => Some(a + b),
+                    (a, b) => a.or(b),
+                };
+                r.addresses += 1;
+            }
+            None => rows.push(AggRow {
+                chain,
+                symbol: symbol.to_string(),
+                contract: contract.map(str::to_string),
+                amount: amount.to_string(),
+                cents: c,
+                addresses: 1,
+            }),
+        }
+    };
+    for h in cards {
+        if let Some(n) = &h.native {
+            add(h.chain, &n.symbol, None, &n.amount, n.usd.as_deref());
+        }
+        for t in h.tokens.iter().filter(|t| include_unpriced || t.usd.is_some()) {
+            add(h.chain, &t.symbol, Some(&t.contract), &t.amount, t.usd.as_deref());
+        }
+    }
+    let chain_rank = |c: Chain| Chain::ALL.iter().position(|x| *x == c).unwrap_or(0);
+    rows.sort_by(|a, b| {
+        (a.contract.is_some(), chain_rank(a.chain))
+            .cmp(&(b.contract.is_some(), chain_rank(b.chain)))
+            .then_with(|| b.cents.unwrap_or(0).cmp(&a.cents.unwrap_or(0)))
+            .then_with(|| a.symbol.cmp(&b.symbol))
+    });
+    rows
+}
+
+#[component]
+fn Summary(
+    cards: Signal<Vec<Holdings>>,
+    left_out: Signal<usize>,
+    show_usd: bool,
+    show_unpriced: RwSignal<bool>,
+) -> impl IntoView {
+    let rows = move || aggregate(&cards.get(), !show_usd || show_unpriced.get());
+    let total = move || cards.get().iter().map(card_cents).sum::<u128>();
+    view! {
+        <div class="summary">
+            <div class="summary-head">
+                <h3>"Totals across all addresses"</h3>
+                {show_usd.then(|| view! {
+                    <p class="grand-total">"≈ " <strong>{move || fmt_cents(total())}</strong></p>
+                })}
+            </div>
+            {move || {
+                let rows = rows();
+                if rows.is_empty() {
+                    return view! { <p class="hint">"Totals appear as addresses finish."</p> }.into_any();
+                }
+                view! {
+                    <div class="table-scroll">
+                        <table class="tokens summary-table">
+                            <thead><tr>
+                                <th>"Asset"</th>
+                                <th class="num">"Amount"</th>
+                                {show_usd.then(|| view! { <th class="num">"USD"</th> })}
+                                <th class="num">"Addresses"</th>
+                            </tr></thead>
+                            <tbody>
+                                {rows.into_iter().map(|r| {
+                                    let title = r.contract.clone().unwrap_or_else(|| "native".into());
+                                    let usd = match r.cents {
+                                        Some(c) => fmt_usd(&format!("{}.{:02}", c / 100, c % 100), &r.amount),
+                                        None => "–".into(),
+                                    };
+                                    view! {
+                                        <tr class:native-row=r.contract.is_none()>
+                                            <td title=title>
+                                                <span class=format!("badge mini {}", r.chain.ticker().to_lowercase())>{r.chain.ticker()}</span>
+                                                " "{r.symbol}
+                                            </td>
+                                            <td class="num">{r.amount}</td>
+                                            {show_usd.then(|| view! { <td class="num">{usd}</td> })}
+                                            <td class="num">{r.addresses}</td>
+                                        </tr>
+                                    }
+                                }).collect_view()}
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                .into_any()
+            }}
+            {move || (left_out.get() > 0).then(|| {
+                let n = left_out.get();
+                view! { <p class="hint">{format!("{n} address{} not included (error, or too much activity to replay).", if n == 1 { "" } else { "es" })}</p> }
+            })}
+            {show_usd.then(|| view! {
+                <label class="check small">
+                    <input
+                        type="checkbox"
+                        prop:checked=move || show_unpriced.get()
+                        on:change=move |ev| show_unpriced.set(event_target_checked(&ev))
+                    />
+                    "Show unpriced tokens"
+                </label>
+                <p class="hint">"Indicative prices from DefiLlama on that date. Tokens without a price (often airdrop spam) are hidden and left out of the total."</p>
+            })}
+        </div>
+    }
+}
+
 #[component]
 pub fn Results(lookup: ActiveLookup) -> impl IntoView {
     let statuses: Vec<ArcRwSignal<RowStatus>> = lookup.rows.iter().map(|r| r.status.clone()).collect();
@@ -157,15 +288,26 @@ pub fn Results(lookup: ActiveLookup) -> impl IntoView {
             .filter(|s| matches!(s.get(), RowStatus::Done(_) | RowStatus::Failed { .. }))
             .count()
     };
-    let grand_total = move || {
-        statuses
+    let card_statuses = statuses.clone();
+    let cards = Signal::derive(move || {
+        card_statuses
             .iter()
             .filter_map(|s| match s.get() {
-                RowStatus::Done(h) => Some(card_cents(&h)),
+                RowStatus::Done(h) => Some(*h),
                 _ => None,
             })
-            .sum::<u128>()
-    };
+            .collect::<Vec<_>>()
+    });
+    let left_out = Signal::derive(move || {
+        statuses
+            .iter()
+            .filter(|s| match s.get() {
+                RowStatus::Failed { .. } => true,
+                RowStatus::Done(h) => h.native.is_none(),
+                _ => false,
+            })
+            .count()
+    });
     let show_usd = lookup.show_usd;
     let show_unpriced = RwSignal::new(false);
     let token = lookup.token.clone();
@@ -174,20 +316,8 @@ pub fn Results(lookup: ActiveLookup) -> impl IntoView {
         <section class="results" aria-live="polite">
             <h2>{format!("Holdings at 23:59:59 UTC on {}", lookup.date)}</h2>
             <p class="progress">{move || format!("{} of {total} addresses done", done())}</p>
-            {show_usd.then(|| view! {
-                <div class="totals">
-                    <p class="grand-total">"Total ≈ " <strong>{move || fmt_cents(grand_total())}</strong></p>
-                    <label class="check small">
-                        <input
-                            type="checkbox"
-                            prop:checked=move || show_unpriced.get()
-                            on:change=move |ev| show_unpriced.set(event_target_checked(&ev))
-                        />
-                        "Show unpriced tokens"
-                    </label>
-                    <p class="hint">"Indicative prices from DefiLlama on that date. Tokens without a price (often airdrop spam) are hidden and left out of the total."</p>
-                </div>
-            })}
+            <Summary cards=cards left_out=left_out show_usd=show_usd show_unpriced=show_unpriced />
+            <h3 class="detail-head">"By address"</h3>
             {lookup
                 .rows
                 .into_iter()
