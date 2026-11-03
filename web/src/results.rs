@@ -202,10 +202,152 @@ fn aggregate(cards: &[Holdings], include_unpriced: bool) -> Vec<AggRow> {
     rows
 }
 
+/// One donut slice: a priced asset, or "Other" for the folded tail.
+#[derive(Clone, Debug, PartialEq)]
+struct Slice {
+    label: String,
+    cents: u128,
+}
+
+/// Up to 6 slices by USD value: all of them if 6 or fewer, else the top 5
+/// plus "Other". Unpriced assets can't be placed on a USD chart.
+fn slices(rows: &[AggRow]) -> Vec<Slice> {
+    let mut priced: Vec<Slice> = rows
+        .iter()
+        .filter_map(|r| {
+            let c = r.cents.filter(|c| *c > 0)?;
+            let label = match &r.contract {
+                None => r.symbol.clone(),
+                Some(_) => format!("{} ({})", r.symbol, r.chain.ticker()),
+            };
+            Some(Slice { label, cents: c })
+        })
+        .collect();
+    priced.sort_by(|a, b| b.cents.cmp(&a.cents).then_with(|| a.label.cmp(&b.label)));
+    if priced.len() > 6 {
+        let other: u128 = priced[5..].iter().map(|s| s.cents).sum();
+        priced.truncate(5);
+        priced.push(Slice { label: "Other".into(), cents: other });
+    }
+    priced
+}
+
+/// SVG path for a donut segment from angle `a0` to `a1` (radians, 0 = top,
+/// clockwise) in a 200×200 box.
+fn arc_path(a0: f64, a1: f64) -> String {
+    const C: f64 = 100.0;
+    const R: f64 = 92.0;
+    const IR: f64 = 58.0;
+    let pt = |r: f64, a: f64| (C + r * a.sin(), C - r * a.cos());
+    let large = u8::from(a1 - a0 > std::f64::consts::PI);
+    let (x0, y0) = pt(R, a0);
+    let (x1, y1) = pt(R, a1);
+    let (x2, y2) = pt(IR, a1);
+    let (x3, y3) = pt(IR, a0);
+    format!(
+        "M{x0:.2} {y0:.2}A{R} {R} 0 {large} 1 {x1:.2} {y1:.2}L{x2:.2} {y2:.2}A{IR} {IR} 0 {large} 0 {x3:.2} {y3:.2}Z"
+    )
+}
+
+fn share(part: u128, whole: u128) -> String {
+    let tenths = (part * 1000 + whole / 2) / whole.max(1);
+    format!("{}.{}%", tenths / 10, tenths % 10)
+}
+
+/// Donut of the USD split, shown once every address has finished so slice
+/// colors are assigned once and never repaint mid-load.
+#[component]
+fn Donut(rows: Vec<AggRow>) -> impl IntoView {
+    let parts = slices(&rows);
+    let total: u128 = parts.iter().map(|s| s.cents).sum();
+    let active = RwSignal::new(Option::<usize>::None);
+    let n = parts.len();
+    // Fixed categorical order by rank; "Other" is neutral gray.
+    let color = move |i: usize, label: &str| {
+        if label == "Other" { "var(--cat-other)".to_string() } else { format!("var(--cat-{})", i + 1) }
+    };
+    let mut angle = 0.0f64;
+    let geometry: Vec<(String, f64)> = parts
+        .iter()
+        .map(|s| {
+            let sweep = std::f64::consts::TAU * s.cents as f64 / total.max(1) as f64;
+            let path = arc_path(angle, angle + sweep);
+            angle += sweep;
+            (path, sweep)
+        })
+        .collect();
+    let aria = parts.iter().map(|s| format!("{} {}", s.label, share(s.cents, total))).collect::<Vec<_>>().join(", ");
+    let center_parts = parts.clone();
+    let value_parts = parts.clone();
+
+    view! {
+        <div class="donut">
+            <svg viewBox="0 0 200 200" role="img" aria-label=format!("USD split: {aria}")>
+                {if n == 1 {
+                    // A single asset is the whole ring.
+                    view! { <circle cx="100" cy="100" r="75" fill="none" stroke=color(0, &parts[0].label) stroke-width="34" /> }.into_any()
+                } else {
+                    parts
+                        .iter()
+                        .zip(geometry)
+                        .enumerate()
+                        .map(|(i, (s, (d, _)))| {
+                            let fill = color(i, &s.label);
+                            view! {
+                                <path
+                                    d=d
+                                    fill=fill
+                                    class="slice"
+                                    class:dim=move || active.get().is_some_and(|a| a != i)
+                                    on:mouseenter=move |_| active.set(Some(i))
+                                    on:mouseleave=move |_| active.set(None)
+                                    on:click=move |_| active.update(|a| *a = if *a == Some(i) { None } else { Some(i) })
+                                />
+                            }
+                        })
+                        .collect_view()
+                        .into_any()
+                }}
+                <text x="100" y="94" class="donut-label">
+                    {move || active.get().map_or("Total".to_string(), |i| center_parts[i].label.clone())}
+                </text>
+                <text x="100" y="116" class="donut-value">
+                    {move || match active.get() {
+                        Some(i) => share(value_parts[i].cents, total),
+                        None => fmt_cents(total),
+                    }}
+                </text>
+            </svg>
+            <ul class="donut-legend">
+                {parts
+                    .iter()
+                    .enumerate()
+                    .map(|(i, s)| {
+                        let swatch = format!("background: {}", color(i, &s.label));
+                        view! {
+                            <li
+                                class:active=move || active.get() == Some(i)
+                                on:mouseenter=move |_| active.set(Some(i))
+                                on:mouseleave=move |_| active.set(None)
+                            >
+                                <span class="swatch" style=swatch></span>
+                                <span class="legend-name">{s.label.clone()}</span>
+                                <span class="legend-share">{share(s.cents, total)}</span>
+                                <span class="legend-usd">{fmt_cents(s.cents)}</span>
+                            </li>
+                        }
+                    })
+                    .collect_view()}
+            </ul>
+        </div>
+    }
+}
+
 #[component]
 fn Summary(
     cards: Signal<Vec<Holdings>>,
     left_out: Signal<usize>,
+    all_done: Signal<bool>,
     show_usd: bool,
     show_unpriced: RwSignal<bool>,
 ) -> impl IntoView {
@@ -219,6 +361,19 @@ fn Summary(
                     <p class="grand-total">"≈ " <strong>{move || fmt_cents(total())}</strong></p>
                 })}
             </div>
+            {move || {
+                if !show_usd {
+                    return ().into_any();
+                }
+                if !all_done.get() {
+                    return view! { <p class="hint">"The chart appears when every address has finished."</p> }.into_any();
+                }
+                let rows = aggregate(&cards.get(), false);
+                if slices(&rows).is_empty() {
+                    return ().into_any();
+                }
+                view! { <Donut rows=rows /> }.into_any()
+            }}
             {move || {
                 let rows = rows();
                 if rows.is_empty() {
@@ -288,6 +443,8 @@ pub fn Results(lookup: ActiveLookup) -> impl IntoView {
             .filter(|s| matches!(s.get(), RowStatus::Done(_) | RowStatus::Failed { .. }))
             .count()
     };
+    let done_count = Signal::derive(done.clone());
+    let all_done = Signal::derive(move || done_count.get() == total);
     let card_statuses = statuses.clone();
     let cards = Signal::derive(move || {
         card_statuses
@@ -315,8 +472,8 @@ pub fn Results(lookup: ActiveLookup) -> impl IntoView {
     view! {
         <section class="results" aria-live="polite">
             <h2>{format!("Holdings at 23:59:59 UTC on {}", lookup.date)}</h2>
-            <p class="progress">{move || format!("{} of {total} addresses done", done())}</p>
-            <Summary cards=cards left_out=left_out show_usd=show_usd show_unpriced=show_unpriced />
+            <p class="progress">{move || format!("{} of {total} addresses done", done_count.get())}</p>
+            <Summary cards=cards left_out=left_out all_done=all_done show_usd=show_usd show_unpriced=show_unpriced />
             <h3 class="detail-head">"By address"</h3>
             {lookup
                 .rows

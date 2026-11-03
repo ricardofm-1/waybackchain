@@ -8,6 +8,11 @@
   --bad: #b3261e;
   --bad-bg: #fdecea;
   --ok-bg: #e8f3ec;
+  /* Categorical chart hues, fixed order (validated light + dark, incl. the
+     wrap-around pair a donut adds). "Other" is neutral. */
+  --cat-1: #2a78d6; --cat-2: #eb6834; --cat-3: #1baf7a;
+  --cat-4: #eda100; --cat-5: #e87ba4; --cat-6: #008300;
+  --cat-other: #a3a39c;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -21,6 +26,9 @@
     --bad: #ff8a80;
     --bad-bg: #3a1c1a;
     --ok-bg: #1b2e22;
+    --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70;
+    --cat-4: #c98500; --cat-5: #d55181; --cat-6: #008300;
+    --cat-other: #5f5f5a;
   }
 }
 
@@ -165,3 +173,19 @@ label.check.small { margin-top: 2px; font-size: 0.9rem; }
 .summary-table td:first-child { white-space: nowrap; }
 .summary-table tr.native-row td { font-weight: 600; }
 .badge.mini { font-size: 0.65rem; padding: 0 5px; vertical-align: 1px; }
+
+/* Donut */
+.donut { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding-block: 4px; }
+.donut svg { width: 180px; height: 180px; flex: none; }
+.donut .slice { stroke: var(--card); stroke-width: 2; stroke-linejoin: round; cursor: pointer; transition: opacity 0.12s; }
+.donut .slice.dim { opacity: 0.35; }
+.donut-label, .donut-value { text-anchor: middle; fill: var(--fg); }
+.donut-label { font-size: 12px; fill: var(--muted); }
+.donut-value { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.donut-legend { list-style: none; margin: 0; padding: 0; flex: 1 1 220px; min-width: 0; display: grid; gap: 4px; }
+.donut-legend li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; font-size: 0.85rem; padding: 2px 4px; border-radius: 6px; }
+.donut-legend li.active { background: var(--bg); }
+.swatch { width: 12px; height: 12px; border-radius: 3px; }
+.legend-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legend-share, .legend-usd { font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+.legend-share { color: var(--fg); }
