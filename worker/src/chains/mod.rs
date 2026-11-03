@@ -5,6 +5,7 @@
 pub mod btc;
 pub mod eth;
 pub mod sol;
+pub mod xrp;
 
 /// Warning codes returned to the frontend.
 pub mod warn {
@@ -16,6 +17,12 @@ pub mod warn {
     pub const TOKEN_CAP_REACHED: &str = "token_cap_reached";
     /// Solana: token accounts closed before today can't be found.
     pub const SOL_CLOSED_ACCOUNTS: &str = "sol_closed_accounts";
+    /// XRP Ledger: the date is before recorded history (January 2013).
+    pub const NO_HISTORY: &str = "no_history";
+    /// XRP balance includes the reserve the account can't spend.
+    pub const XRP_INCLUDES_RESERVE: &str = "xrp_includes_reserve";
+    /// Very large balance: probably an exchange address shared via tags.
+    pub const LIKELY_EXCHANGE: &str = "likely_exchange";
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -292,6 +292,16 @@ async fn lookup_address(ctx: &Ctx, body: &str) -> Result<Response> {
             let r = chains::sol::get_holdings(&helius, &node, &d.canonical, cutoff, chains::sol::Limits::DEFAULT).await;
             (chains::sol::SYMBOL, chains::sol::DECIMALS, r)
         }
+        Chain::Xrp => {
+            // Full-history servers, primary first. Port 443 on both (Workers
+            // fetch is safest on standard ports).
+            let nodes = [
+                upstream::Rpc { http: &http, urls: vec!["https://s2.ripple.com/".into()] },
+                upstream::Rpc { http: &http, urls: vec!["https://xrplcluster.com/".into()] },
+            ];
+            let r = chains::xrp::get_holdings(&nodes, &d.canonical, cutoff, chains::xrp::Limits::DEFAULT).await;
+            (chains::xrp::SYMBOL, chains::xrp::DECIMALS, r)
+        }
         _ => return error(501, "chain_not_supported_yet"),
     };
 

@@ -7,14 +7,15 @@ BASE=${BASE:-http://127.0.0.1:8787}
 LIGHT=14taMumBrvWCVw214fExgvX1FdmiK2FFy6
 ETH=0xe4effbc36b1614d708c9d0a9a7affdf79aaccb9f
 SOL=HdcxNedhEU1gJx1T62Eah7irquPnySnjSyMxSDjyPQhZ
-OTHER=rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh
+XRP=rMBzp8CgpE441cp5PVyA9rpVV7oT8hP3ys
+OTHER=addr1vx2fxv2umyhttkxyxp8x0dlpdt3k6cwng5pxj3jhsydzers66hrl8
 
 pass=0; fail=0
 check() { if [[ "$2" == "$3" ]]; then pass=$((pass+1)); echo "ok   $1"; else fail=$((fail+1)); echo "FAIL $1: expected $2, got $3"; fi; }
 
 SID=$(curl -s -D - -o /dev/null "$BASE/api/quota" | grep -i '^set-cookie: hl_sid=' | sed -E 's/^[^=]*=([^;]*).*/\1/' | tr -d '\r')
 START=$(curl -s -X POST "$BASE/api/lookup/start" -H 'Content-Type: application/json' -H "Cookie: hl_sid=$SID" \
-  --data '{"turnstileToken":"XXXX.DUMMY.TOKEN.XXXX","date":"2024-01-01","addresses":[{"address":"'$LIGHT'","chain":"btc"},{"address":"'$ETH'","chain":"eth"},{"address":"'$SOL'","chain":"sol"},{"address":"'$OTHER'","chain":"xrp"}]}')
+  --data '{"turnstileToken":"XXXX.DUMMY.TOKEN.XXXX","date":"2024-01-01","addresses":[{"address":"'$LIGHT'","chain":"btc"},{"address":"'$ETH'","chain":"eth"},{"address":"'$SOL'","chain":"sol"},{"address":"'$XRP'","chain":"xrp"},{"address":"'$OTHER'","chain":"ada"}]}')
 TOKEN=$(echo "$START" | python3 -c 'import sys,json; print(json.load(sys.stdin)["lookupToken"])')
 
 addr() { # address [token] [cookie] -> "<status> <body>"
@@ -39,7 +40,12 @@ check "SOL medium wallet -> 200" 200 "$(echo "$r" | tail -1)"
 # First activity is 2024-01-04, so on 2024-01-01 it held nothing.
 check "SOL balance before first tx = 0" '"amount":"0"' "$(echo "$r" | head -1 | grep -o '"amount":"[^"]*"' | head -1)"
 check "SOL no tokens yet" '"tokens":[]' "$(echo "$r" | head -1 | grep -o '"tokens":\[\]')"
-check "XRP not built yet -> 501" 501 "$(addr "$OTHER" | tail -1)"
+r=$(addr "$XRP")
+check "XRP light account -> 200" 200 "$(echo "$r" | tail -1)"
+check "XRP balance at 2024-01-01" '"amount":"50.43151"' "$(echo "$r" | head -1 | grep -o '"amount":"[^"]*"' | head -1)"
+check "XRP ledger = 84996424" '"asOfBlock":"84996424"' "$(echo "$r" | head -1 | grep -o '"asOfBlock":"[^"]*"')"
+check "Bitstamp USD line" '"symbol":"USD","amount":"9.34562406753"' "$(echo "$r" | head -1 | grep -o '"symbol":"USD","amount":"[^"]*"')"
+check "ADA not built yet -> 501" 501 "$(addr "$OTHER" | tail -1)"
 check "address outside lookup -> 404" 404 "$(addr 1JG56Dftg8Ygy4XZR7eZ4e2fZxMCsaHEFd | tail -1)"
 check "tampered token -> 401" 401 "$(addr "$LIGHT" "${TOKEN%?}x" | tail -1)"
 OTHER_SID=$(curl -s -D - -o /dev/null "$BASE/api/quota" | grep -i '^set-cookie: hl_sid=' | sed -E 's/^[^=]*=([^;]*).*/\1/' | tr -d '\r')

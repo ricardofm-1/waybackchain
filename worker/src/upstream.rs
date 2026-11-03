@@ -244,8 +244,9 @@ pub mod fixtures {
         /// `live_env` names the env var holding the key; `make_live(key)`
         /// returns (prefix, suffix).
         pub fn new(chain: &str, live_env: &str, make_live: impl Fn(&str) -> (String, String)) -> Self {
+            // An empty `live_env` means the provider needs no key.
             let live = (std::env::var("RECORD").as_deref() == Ok("1"))
-                .then(|| std::env::var(live_env).ok())
+                .then(|| if live_env.is_empty() { Some(String::new()) } else { std::env::var(live_env).ok() })
                 .flatten()
                 .map(|k| make_live(&k));
             Self { dir: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures").join(chain), live }

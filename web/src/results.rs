@@ -88,6 +88,11 @@ fn warning_text(code: &str) -> String {
         "sol_closed_accounts" => {
             "Solana token accounts that were closed before today can't be found, so tokens held in them on that date may be missing.".into()
         }
+        "no_history" => "The XRP Ledger's recorded history starts in January 2013, so there's no data for this date.".into(),
+        "xrp_includes_reserve" => "The XRP balance includes the reserve the account can't spend.".into(),
+        "likely_exchange" => {
+            "This address holds a very large balance and is probably an exchange account shared by many customers.".into()
+        }
         other => format!("Note: {other}"),
     }
 }
@@ -162,7 +167,10 @@ fn Card(row: Row, token: Arc<str>) -> impl IntoView {
                     <p class="native"><strong>{n.amount}</strong>" "{n.symbol}</p>
                 })}
                 <p class="meta">
-                    {h.as_of_block.clone().map(|b| format!("Block {} · ", group_digits(&b)))}
+                    {h.as_of_block.clone().map(|b| {
+                        let label = if h.chain == wayback_core::Chain::Xrp { "Ledger" } else { "Block" };
+                        format!("{label} {} · ", group_digits(&b))
+                    })}
                     {h.address.clone()}
                 </p>
                 {h.warnings.iter().map(|w| view! { <p class="warning">{warning_text(w)}</p> }).collect_view()}
