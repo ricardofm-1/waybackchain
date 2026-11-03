@@ -16,7 +16,7 @@ use hmac::{Hmac, Mac};
 use serde::Serialize;
 use sha2::Sha256;
 use std::collections::HashSet;
-use wayback_core::amount::format_units;
+use wayback_core::amount::{format_units, format_units_str};
 use wayback_core::api::{
     Amount, Holdings, LookupAddressRequest, LookupStartRequest, LookupStartResponse, Quota, TokenHolding,
 };
@@ -265,6 +265,20 @@ async fn lookup_address(ctx: &Ctx, body: &str) -> Result<Response> {
             let r = chains::btc::get_holdings(&src, &d.canonical, cutoff, chains::btc::MAX_TXS_AFTER_T).await;
             (chains::btc::SYMBOL, chains::btc::DECIMALS, r)
         }
+        Chain::Eth => {
+            let (Ok(es_key), Ok(alchemy_key)) = (ctx.env.secret("ETHERSCAN_KEY"), ctx.env.secret("ALCHEMY_KEY")) else {
+                console_error!("ETH provider keys missing");
+                return error(503, "chain_not_configured");
+            };
+            let es = upstream::Etherscan { http: &http, key: es_key.to_string() };
+            let node = upstream::Rpc {
+                http: &http,
+                url: format!("https://eth-mainnet.g.alchemy.com/v2/{alchemy_key}"),
+            };
+            let now = (ctx.now_ms / 1000) as i64;
+            let r = chains::eth::get_holdings(&es, &node, &d.canonical, cutoff, now, chains::eth::Limits::DEFAULT).await;
+            (chains::eth::SYMBOL, chains::eth::DECIMALS, r)
+        }
         _ => return error(501, "chain_not_supported_yet"),
     };
 
@@ -298,7 +312,7 @@ async fn lookup_address(ctx: &Ctx, body: &str) -> Result<Response> {
                     .map(|t| TokenHolding {
                         contract: t.contract,
                         symbol: t.symbol,
-                        amount: format_units(t.amount, t.decimals),
+                        amount: format_units_str(&t.amount.to_string(), t.decimals),
                         usd: None,
                     })
                     .collect(),

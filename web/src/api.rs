@@ -29,6 +29,7 @@ impl CallError {
                 "bad_token" => "This lookup has expired. Press Look up to run it again.".into(),
                 "upstream_error" => "The blockchain data provider didn't answer. Try again.".into(),
                 "chain_not_supported_yet" => "This chain isn't supported yet; it's coming in a later build step.".into(),
+                "chain_not_configured" => "This chain isn't configured on the server yet.".into(),
                 "address_not_in_lookup" => "This address isn't part of the current lookup.".into(),
                 "invalid_input" => "The server rejected the addresses or date. Check the list and try again.".into(),
                 other => format!("Something went wrong ({other}). Please try again."),

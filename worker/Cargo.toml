@@ -18,6 +18,10 @@ hex = "0.4"
 base64 = "0.22"
 getrandom = { version = "0.2", features = ["js"] }
 futures-util = { version = "0.3", default-features = false }
+alloy-primitives = { version = "=1.7.3", default-features = false, features = ["std"] }
+alloy-sol-types = { version = "=1.7.3", default-features = false, features = ["std"] }
 
 [dev-dependencies]
 futures = { version = "0.3", default-features = false, features = ["executor"] }
+# Fixture recording (RECORD=1 cargo test); never part of the Worker build.
+ureq = { version = "=3.4.2", features = ["json"] }

@@ -50,6 +50,11 @@ impl UpstreamError {
 #[allow(async_fn_in_trait)]
 pub trait JsonSource {
     async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, UpstreamError>;
+
+    /// JSON POST (JSON-RPC). Sources that only serve GET answer 405.
+    async fn post<T: DeserializeOwned>(&self, _path: &str, _body: &serde_json::Value) -> Result<T, UpstreamError> {
+        Err(UpstreamError::Status(405))
+    }
 }
 
 pub struct Http {
@@ -73,6 +78,14 @@ impl Http {
     /// GET with up to two retries (exponential backoff) on 429 / 5xx /
     /// network errors. Each attempt is cut off at the remaining time.
     pub async fn get_json<T: DeserializeOwned>(&self, url: &str) -> Result<T, UpstreamError> {
+        self.send_json(url, None).await
+    }
+
+    pub async fn post_json<T: DeserializeOwned>(&self, url: &str, body: &serde_json::Value) -> Result<T, UpstreamError> {
+        self.send_json(url, Some(body.to_string())).await
+    }
+
+    async fn send_json<T: DeserializeOwned>(&self, url: &str, body: Option<String>) -> Result<T, UpstreamError> {
         let mut last = UpstreamError::Network;
         for attempt in 0..=RETRIES {
             if attempt > 0 {
@@ -83,7 +96,8 @@ impl Http {
             }
             self.budget.set(self.budget.get() - 1);
             let remaining = self.deadline_ms.saturating_sub(Date::now().as_millis());
-            match self.attempt(url, Duration::from_millis(remaining.min(PER_REQUEST_TIMEOUT_MS))).await {
+            let timeout = Duration::from_millis(remaining.min(PER_REQUEST_TIMEOUT_MS));
+            match self.attempt(url, body.as_deref(), timeout).await {
                 Ok(v) => return Ok(v),
                 Err(UpstreamError::Timeout) => return Err(UpstreamError::Timeout),
                 Err(e) if e.is_our_side() => last = e,
@@ -93,12 +107,21 @@ impl Http {
         Err(last)
     }
 
-    async fn attempt<T: DeserializeOwned>(&self, url: &str, timeout: Duration) -> Result<T, UpstreamError> {
+    async fn attempt<T: DeserializeOwned>(&self, url: &str, body: Option<&str>, timeout: Duration) -> Result<T, UpstreamError> {
         let headers = Headers::new();
         let _ = headers.set("Accept", "application/json");
         let _ = headers.set("User-Agent", "wayback-wallet/0.1");
         let mut init = RequestInit::new();
-        init.with_method(Method::Get).with_headers(headers);
+        match body {
+            Some(b) => {
+                let _ = headers.set("Content-Type", "application/json");
+                init.with_method(Method::Post).with_body(Some(b.into()));
+            }
+            None => {
+                init.with_method(Method::Get);
+            }
+        }
+        init.with_headers(headers);
         let req = Request::new_with_init(url, &init).map_err(|_| UpstreamError::Network)?;
 
         let controller = AbortController::default();
@@ -143,6 +166,37 @@ impl JsonSource for Rest<'_> {
     }
 }
 
+/// Etherscan API V2 (Ethereum mainnet). `path` is the query string without
+/// the key, e.g. `module=block&action=getblocknobytime&...`.
+pub struct Etherscan<'a> {
+    pub http: &'a Http,
+    pub key: String,
+}
+
+impl JsonSource for Etherscan<'_> {
+    async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, UpstreamError> {
+        self.http
+            .get_json(&format!("https://api.etherscan.io/v2/api?chainid=1&{path}&apikey={}", self.key))
+            .await
+    }
+}
+
+/// A JSON-RPC endpoint (URL includes the key, e.g. Alchemy's).
+pub struct Rpc<'a> {
+    pub http: &'a Http,
+    pub url: String,
+}
+
+impl JsonSource for Rpc<'_> {
+    async fn get<T: DeserializeOwned>(&self, _path: &str) -> Result<T, UpstreamError> {
+        Err(UpstreamError::Status(405))
+    }
+
+    async fn post<T: DeserializeOwned>(&self, _path: &str, body: &serde_json::Value) -> Result<T, UpstreamError> {
+        self.http.post_json(&self.url, body).await
+    }
+}
+
 #[cfg(test)]
 pub mod fixtures {
     //! Recorded API responses under `test/fixtures/<chain>/`. A path maps to
@@ -165,6 +219,86 @@ pub mod fixtures {
             let file = self.dir.join(format!("{}.json", path.trim_start_matches('/').replace('/', "__")));
             let text = std::fs::read_to_string(&file).map_err(|_| UpstreamError::Status(404))?;
             serde_json::from_str(&text).map_err(|_| UpstreamError::Decode)
+        }
+    }
+
+    /// Fixtures keyed by a hash of the request, stored as
+    /// `{"request": …, "response": …}` (no API keys). With `RECORD=1` and the
+    /// live URL's env var set, missing fixtures are fetched once and saved.
+    pub struct Recorded {
+        dir: PathBuf,
+        /// Live base: for GET, prefix + path + suffix; for POST, the URL.
+        live: Option<(String, String)>,
+    }
+
+    impl Recorded {
+        /// `live_env` names the env var holding the key; `make_live(key)`
+        /// returns (prefix, suffix).
+        pub fn new(chain: &str, live_env: &str, make_live: impl Fn(&str) -> (String, String)) -> Self {
+            let live = (std::env::var("RECORD").as_deref() == Ok("1"))
+                .then(|| std::env::var(live_env).ok())
+                .flatten()
+                .map(|k| make_live(&k));
+            Self { dir: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("test/fixtures").join(chain), live }
+        }
+
+        fn file(&self, request: &serde_json::Value) -> PathBuf {
+            use sha2::{Digest, Sha256};
+            let h = hex::encode(&Sha256::digest(request.to_string().as_bytes())[..8]);
+            self.dir.join(format!("{h}.json"))
+        }
+
+        fn load_or_record(
+            &self,
+            request: serde_json::Value,
+            fetch: impl FnOnce(&(String, String)) -> Result<serde_json::Value, String>,
+        ) -> Result<serde_json::Value, UpstreamError> {
+            let file = self.file(&request);
+            if let Ok(text) = std::fs::read_to_string(&file) {
+                let v: serde_json::Value = serde_json::from_str(&text).map_err(|_| UpstreamError::Decode)?;
+                return Ok(v["response"].clone());
+            }
+            let Some(live) = &self.live else {
+                eprintln!("missing fixture {} for {request}", file.display());
+                return Err(UpstreamError::Status(404));
+            };
+            let response = fetch(live).map_err(|e| {
+                eprintln!("live call failed: {e}");
+                UpstreamError::Network
+            })?;
+            std::fs::create_dir_all(&self.dir).ok();
+            let doc = serde_json::json!({ "request": request, "response": response });
+            std::fs::write(&file, serde_json::to_string(&doc).unwrap()).unwrap();
+            Ok(response)
+        }
+    }
+
+    impl JsonSource for Recorded {
+        async fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, UpstreamError> {
+            let request = serde_json::json!({ "method": "GET", "path": path });
+            let v = self.load_or_record(request, |(pre, suf)| {
+                std::thread::sleep(std::time::Duration::from_millis(400));
+                ureq::get(format!("{pre}{path}{suf}"))
+                    .call()
+                    .map_err(|e| e.to_string())?
+                    .body_mut()
+                    .read_json()
+                    .map_err(|e| e.to_string())
+            })?;
+            serde_json::from_value(v).map_err(|_| UpstreamError::Decode)
+        }
+
+        async fn post<T: DeserializeOwned>(&self, path: &str, body: &serde_json::Value) -> Result<T, UpstreamError> {
+            let request = serde_json::json!({ "method": "POST", "path": path, "body": body });
+            let v = self.load_or_record(request, |(url, _)| {
+                ureq::post(url.as_str())
+                    .send_json(body)
+                    .map_err(|e| e.to_string())?
+                    .body_mut()
+                    .read_json()
+                    .map_err(|e| e.to_string())
+            })?;
+            serde_json::from_value(v).map_err(|_| UpstreamError::Decode)
         }
     }
 }

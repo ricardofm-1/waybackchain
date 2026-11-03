@@ -70,7 +70,7 @@ async fn fetch_row(token: &str, row: &Row) {
             // Retrying only helps when the provider or network was at fault.
             retryable: !matches!(
                 e.code(),
-                Some("bad_token" | "chain_not_supported_yet" | "address_not_in_lookup" | "invalid_input")
+                Some("bad_token" | "chain_not_supported_yet" | "chain_not_configured" | "address_not_in_lookup" | "invalid_input")
             ),
             message: e.user_message(),
         },
@@ -83,6 +83,8 @@ fn warning_text(code: &str) -> String {
         "too_many_txs" => {
             "This address has too much activity since that date to replay in time, so no balance is shown.".into()
         }
+        "tokens_incomplete" => "This address has a very long token history; some tokens may be missing.".into(),
+        "token_cap_reached" => "This address has held more token types than we check; only the first 300 are shown.".into(),
         other => format!("Note: {other}"),
     }
 }

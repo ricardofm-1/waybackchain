@@ -1,0 +1,1 @@
+{"request":{"body":{"id":1,"jsonrpc":"2.0","method":"eth_getBalance","params":["0xe4effbc36b1614d708c9d0a9a7affdf79aaccb9f","0x120a2a1"]},"method":"POST","path":""},"response":{"id":1,"jsonrpc":"2.0","result":"0x1462e6e30579400"}}
