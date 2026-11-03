@@ -4,6 +4,7 @@
 //! Worker run exactly the same checks.
 
 pub mod address_list;
+pub mod amount;
 pub mod api;
 pub mod chains;
 

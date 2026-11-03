@@ -5,22 +5,34 @@
 //! never addresses or IPs.
 
 mod captcha;
+mod chains;
 mod ratelimit;
 mod sid;
 mod time;
 mod token;
+mod upstream;
 
 use hmac::{Hmac, Mac};
 use serde::Serialize;
 use sha2::Sha256;
 use std::collections::HashSet;
-use wayback_core::api::{LookupStartRequest, LookupStartResponse, Quota};
-use wayback_core::{verify as verify_address, MAX_ADDRESSES};
+use wayback_core::amount::format_units;
+use wayback_core::api::{
+    Amount, Holdings, LookupAddressRequest, LookupStartRequest, LookupStartResponse, Quota, TokenHolding,
+};
+use wayback_core::{detect, verify as verify_address, Chain, MAX_ADDRESSES};
 use worker::*;
 
 pub use ratelimit::Limiter;
 
 const MAX_BODY_BYTES: usize = 16 * 1024;
+/// Outbound requests one address call may make to providers. Cloudflare's
+/// free plan allows 50 per invocation (Durable Object calls count too); set
+/// SUBREQUEST_BUDGET higher on Workers Paid.
+const DEFAULT_SUBREQUEST_BUDGET: u32 = 45;
+/// Wall-time cap for one address call; past it, history walks stop with a
+/// `too_many_txs` warning.
+const ADDRESS_TIME_LIMIT: std::time::Duration = std::time::Duration::from_secs(20);
 
 struct Ctx {
     env: Env,
@@ -107,7 +119,10 @@ async fn handle(mut req: Request, env: Env) -> Result<Response> {
             let body = req.text().await?;
             lookup_start(&ctx, &body).await
         }
-        (Method::Post, "/api/lookup/address") => error(501, "not_implemented"),
+        (Method::Post, "/api/lookup/address") => {
+            let body = req.text().await?;
+            lookup_address(&ctx, &body).await
+        }
         _ => error(404, "not_found"),
     }?;
 
@@ -204,8 +219,9 @@ async fn lookup_start(ctx: &Ctx, body: &str) -> Result<Response> {
     // 4. Token binding visitor, date and the exact address set.
     let claims = token::Claims {
         sid: ctx.sid.clone(),
+        day: today,
         date: input.date,
-        h: token::address_set_hash(&canonical),
+        a: token::sorted_addresses(canonical),
         exp: ctx.now_ms + token::LIFETIME_MS,
     };
     Response::from_json(&LookupStartResponse {
@@ -213,4 +229,88 @@ async fn lookup_start(ctx: &Ctx, body: &str) -> Result<Response> {
         remaining: remaining(s.count, ip.count),
         reset_at,
     })
+}
+
+async fn lookup_address(ctx: &Ctx, body: &str) -> Result<Response> {
+    if body.len() > MAX_BODY_BYTES {
+        return error(400, "invalid_input");
+    }
+    let Ok(input) = serde_json::from_str::<LookupAddressRequest>(body) else {
+        return error(400, "invalid_input");
+    };
+    let Ok((claims, lookup_id)) = token::verify(&ctx.secret, &input.lookup_token, &ctx.sid, ctx.now_ms) else {
+        return error(401, "bad_token");
+    };
+    let Ok(d) = detect(&input.address) else {
+        return error(404, "address_not_in_lookup");
+    };
+    let Some(index) = claims.index_of(&d.canonical) else {
+        return error(404, "address_not_in_lookup");
+    };
+    let Some(cutoff) = time::cutoff_unix(&claims.date) else {
+        return error(401, "bad_token");
+    };
+
+    let budget = ctx
+        .env
+        .var("SUBREQUEST_BUDGET")
+        .ok()
+        .and_then(|v| v.to_string().parse().ok())
+        .unwrap_or(DEFAULT_SUBREQUEST_BUDGET);
+    let http = upstream::Http::new(budget, ADDRESS_TIME_LIMIT);
+
+    let (symbol, decimals, result) = match d.chain {
+        Chain::Btc => {
+            let src = upstream::Rest { http: &http, bases: chains::btc::PROVIDERS };
+            let r = chains::btc::get_holdings(&src, &d.canonical, cutoff, chains::btc::MAX_TXS_AFTER_T).await;
+            (chains::btc::SYMBOL, chains::btc::DECIMALS, r)
+        }
+        _ => return error(501, "chain_not_supported_yet"),
+    };
+
+    let total = claims.a.len();
+    let report = |ok: bool| async move {
+        let sid_key = sid_key(ctx);
+        match ratelimit::report(&ctx.env, &sid_key, &claims.day, &lookup_id, total, index, ok).await {
+            Ok(true) => {
+                console_log!("lookup refunded");
+                if let Err(e) = ratelimit::call(&ctx.env, &ip_key(ctx), "refund", &claims.day, 0).await {
+                    console_error!("ip refund failed: {e}");
+                }
+            }
+            Ok(false) => {}
+            Err(e) => console_error!("outcome report failed: {e}"),
+        }
+    };
+
+    match result {
+        Ok(raw) => {
+            report(true).await;
+            Response::from_json(&Holdings {
+                chain: d.chain,
+                address: d.input,
+                as_of_block: raw.as_of_block.map(|b| b.to_string()),
+                as_of_time: format!("{}T23:59:59Z", claims.date),
+                native: raw.native.map(|v| Amount { symbol: symbol.into(), amount: format_units(v, decimals), usd: None }),
+                tokens: raw
+                    .tokens
+                    .into_iter()
+                    .map(|t| TokenHolding {
+                        contract: t.contract,
+                        symbol: t.symbol,
+                        amount: format_units(t.amount, t.decimals),
+                        usd: None,
+                    })
+                    .collect(),
+                warnings: raw.warnings.into_iter().map(String::from).collect(),
+            })
+        }
+        Err(e) => {
+            console_error!("{} upstream error: {}", d.chain, e.label());
+            if e.is_our_side() {
+                report(false).await;
+            }
+            error(502, "upstream_error")
+        }
+    }
 }

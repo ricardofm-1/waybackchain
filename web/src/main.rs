@@ -1,5 +1,6 @@
 mod api;
 mod cookie;
+mod results;
 mod turnstile;
 
 use leptos::html::Div;
@@ -25,16 +26,6 @@ fn utc_date(offset_days: f64) -> String {
     format!("{:04}-{:02}-{:02}", d.get_utc_full_year(), d.get_utc_month() + 1, d.get_utc_date())
 }
 
-/// A lookup the Worker accepted; per-address calls use it in build step 3.
-#[derive(Clone, Debug)]
-#[allow(dead_code)]
-struct ActiveLookup {
-    token: String,
-    date: String,
-    addresses: Vec<AddressRef>,
-    show_usd: bool,
-}
-
 #[component]
 fn App() -> impl IntoView {
     let saved = cookie::load();
@@ -48,7 +39,7 @@ fn App() -> impl IntoView {
     let (quota, set_quota) = signal(Option::<Quota>::None);
     let (captcha_token, set_captcha_token) = signal(String::new());
     let (busy, set_busy) = signal(false);
-    let (_lookup, set_lookup) = signal(Option::<ActiveLookup>::None);
+    let (lookup, set_lookup) = signal(Option::<results::ActiveLookup>::None);
     let captcha_ref = NodeRef::<Div>::new();
 
     spawn_local(async move {
@@ -112,6 +103,7 @@ fn App() -> impl IntoView {
         }
         set_busy.set(true);
         set_message.set(None);
+        set_lookup.set(None);
 
         spawn_local(async move {
             match api::lookup_start(&request).await {
@@ -119,20 +111,17 @@ fn App() -> impl IntoView {
                     let kept = cookie::save(&addresses);
                     set_quota.set(Some(Quota { remaining: resp.remaining, reset_at: resp.reset_at }));
                     let n = request.addresses.len();
-                    let mut msg = format!(
-                        "Lookup accepted for {n} address{} on {d}. Balances arrive with build step 3.",
-                        if n == 1 { "" } else { "es" },
-                    );
                     if kept < n {
-                        msg.push_str(&format!(" Only the first {kept} fit in the saved list."));
+                        set_message.set(Some((true, format!("Only the first {kept} addresses fit in the saved list."))));
                     }
-                    set_lookup.set(Some(ActiveLookup {
-                        token: resp.lookup_token,
-                        date: d,
-                        addresses: request.addresses,
-                        show_usd: show_usd.get_untracked(),
-                    }));
-                    set_message.set(Some((true, msg)));
+                    let active = results::ActiveLookup::new(
+                        resp.lookup_token,
+                        d,
+                        request.addresses,
+                        show_usd.get_untracked(),
+                    );
+                    active.run();
+                    set_lookup.set(Some(active));
                 }
                 Err(e) => {
                     if let api::CallError::Api(body) = &e {
@@ -240,6 +229,8 @@ fn App() -> impl IntoView {
                 </p>
             </form>
         </main>
+
+        {move || lookup.get().map(|l| view! { <results::Results lookup=l /> })}
 
         <footer>
             "Data comes from public blockchain APIs and may be incomplete for very active addresses."

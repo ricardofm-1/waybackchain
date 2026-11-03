@@ -2045,6 +2045,8 @@ name = "wayback-worker"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "futures",
+ "futures-util",
  "getrandom 0.2.17",
  "hex",
  "hmac",

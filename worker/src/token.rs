@@ -1,6 +1,9 @@
 //! `lookupToken`: proves a paid lookup for a fixed (visitor, date, address
-//! list) for 10 minutes, so per-address calls cost no quota but can't be
-//! stretched to other addresses.
+//! list) for 10 minutes, so per-address calls and retries cost no quota but
+//! can't be stretched to other addresses.
+//!
+//! The signed claims carry the sorted canonical address list itself, so the
+//! Worker can check membership statelessly and never stores addresses.
 //!
 //! Format: `<base64url(JSON claims)>.<base64url(HMAC-SHA256("lt:" + claims))>`.
 
@@ -17,15 +20,24 @@ type HmacSha256 = Hmac<Sha256>;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Claims {
     pub sid: String,
+    /// UTC day the quota was spent (for refunds).
+    pub day: String,
+    /// Lookup date; the cutoff is 23:59:59 UTC on it.
     pub date: String,
-    /// hex sha256 of the sorted canonical addresses, newline-joined.
-    pub h: String,
+    /// Sorted, de-duplicated canonical addresses.
+    pub a: Vec<String>,
     /// Expiry, Unix milliseconds.
     pub exp: u64,
 }
 
+impl Claims {
+    /// Position of `canonical` in the signed list, if it's part of the lookup.
+    pub fn index_of(&self, canonical: &str) -> Option<usize> {
+        self.a.binary_search_by(|x| x.as_str().cmp(canonical)).ok()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
-#[allow(dead_code)] // verified by /api/lookup/address (step 3)
 pub enum TokenError {
     Malformed,
     BadSignature,
@@ -33,11 +45,10 @@ pub enum TokenError {
     WrongVisitor,
 }
 
-pub fn address_set_hash<S: AsRef<str>>(canonical: &[S]) -> String {
-    let mut v: Vec<&str> = canonical.iter().map(AsRef::as_ref).collect();
-    v.sort_unstable();
-    v.dedup();
-    hex::encode(Sha256::digest(v.join("\n").as_bytes()))
+pub fn sorted_addresses(mut canonical: Vec<String>) -> Vec<String> {
+    canonical.sort_unstable();
+    canonical.dedup();
+    canonical
 }
 
 fn mac(secret: &[u8], payload: &str) -> HmacSha256 {
@@ -53,8 +64,8 @@ pub fn sign(secret: &[u8], claims: &Claims) -> String {
     format!("{payload}.{sig}")
 }
 
-#[allow(dead_code)]
-pub fn verify(secret: &[u8], token: &str, sid: &str, now_ms: u64) -> Result<Claims, TokenError> {
+/// Verified claims plus a short lookup ID (for refund bookkeeping).
+pub fn verify(secret: &[u8], token: &str, sid: &str, now_ms: u64) -> Result<(Claims, String), TokenError> {
     let (payload, sig) = token.split_once('.').ok_or(TokenError::Malformed)?;
     let sig = B64.decode(sig).map_err(|_| TokenError::Malformed)?;
     mac(secret, payload).verify_slice(&sig).map_err(|_| TokenError::BadSignature)?;
@@ -66,7 +77,8 @@ pub fn verify(secret: &[u8], token: &str, sid: &str, now_ms: u64) -> Result<Clai
     if claims.sid != sid {
         return Err(TokenError::WrongVisitor);
     }
-    Ok(claims)
+    let id = hex::encode(&Sha256::digest(payload.as_bytes())[..8]);
+    Ok((claims, id))
 }
 
 #[cfg(test)]
@@ -76,13 +88,21 @@ mod tests {
     const K: &[u8] = b"k";
 
     fn claims() -> Claims {
-        Claims { sid: "s1".into(), date: "2024-01-01".into(), h: address_set_hash(&["b", "a"]), exp: 1_000 }
+        Claims {
+            sid: "s1".into(),
+            day: "2026-11-03".into(),
+            date: "2024-01-01".into(),
+            a: sorted_addresses(vec!["b".into(), "a".into(), "b".into()]),
+            exp: 1_000,
+        }
     }
 
     #[test]
     fn round_trip() {
         let t = sign(K, &claims());
-        assert_eq!(verify(K, &t, "s1", 999), Ok(claims()));
+        let (c, id) = verify(K, &t, "s1", 999).unwrap();
+        assert_eq!(c, claims());
+        assert_eq!(id.len(), 16);
     }
 
     #[test]
@@ -92,14 +112,16 @@ mod tests {
         assert_eq!(verify(K, &t, "s2", 0), Err(TokenError::WrongVisitor));
         assert_eq!(verify(b"x", &t, "s1", 0), Err(TokenError::BadSignature));
         let mut c = claims();
-        c.date = "2020-01-01".into();
+        c.a.push("c".into());
         let forged = format!("{}.{}", sign(K, &c).split_once('.').unwrap().0, t.split_once('.').unwrap().1);
         assert_eq!(verify(K, &forged, "s1", 0), Err(TokenError::BadSignature));
     }
 
     #[test]
-    fn hash_ignores_order_and_duplicates() {
-        assert_eq!(address_set_hash(&["a", "b"]), address_set_hash(&["b", "a", "a"]));
-        assert_ne!(address_set_hash(&["a"]), address_set_hash(&["a", "b"]));
+    fn membership() {
+        let c = claims();
+        assert_eq!(c.a, vec!["a", "b"]);
+        assert_eq!(c.index_of("b"), Some(1));
+        assert_eq!(c.index_of("c"), None);
     }
 }

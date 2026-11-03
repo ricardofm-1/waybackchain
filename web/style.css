@@ -117,3 +117,34 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 a { color: var(--accent); }
 
 footer { padding-block: 16px 32px; border-top: 1px solid var(--line); font-size: 0.8rem; }
+
+/* Results */
+.results { max-width: 720px; margin: 0 auto; padding-block: 8px 24px; display: flex; flex-direction: column; gap: 8px; }
+.results h2 { font-size: 1.1rem; margin: 0; }
+.progress { margin: 0 0 4px; color: var(--muted); font-size: 0.875rem; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+.card summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+.card summary::-webkit-details-marker { display: none; }
+.card .addr { font-size: 0.85rem; }
+.state { font-size: 0.85rem; text-align: right; white-space: nowrap; }
+.state.amount { font-weight: 600; font-variant-numeric: tabular-nums; }
+.state.fetching { color: var(--accent); }
+.state.error, .error-text { color: var(--bad); }
+.state.warn { color: #a15c00; }
+.card-body { padding: 0 12px 12px; border-top: 1px solid var(--line); }
+.native { font-size: 1.25rem; margin: 10px 0 2px; font-variant-numeric: tabular-nums; }
+.meta { margin: 0; color: var(--muted); font-size: 0.8rem; overflow-wrap: anywhere; }
+.warning { margin: 8px 0 0; padding: 8px 10px; border-radius: 6px; background: #fff4e0; color: #6b4200; font-size: 0.85rem; }
+@media (prefers-color-scheme: dark) { .warning { background: #3a2c12; color: #f3cf8f; } .state.warn { color: #f3cf8f; } }
+table.tokens { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+table.tokens th, table.tokens td { text-align: left; padding: 4px 0; border-bottom: 1px solid var(--line); }
+table.tokens .num { text-align: right; font-variant-numeric: tabular-nums; }
+button.small { min-height: 36px; padding: 6px 14px; margin-top: 8px; }

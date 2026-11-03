@@ -71,7 +71,6 @@ pub fn is_valid_lookup_date(s: &str, now_ms: u64) -> bool {
 }
 
 /// Cutoff `T`: 23:59:59 UTC on the date, as Unix seconds.
-#[allow(dead_code)] // used by the chain modules (step 3)
 pub fn cutoff_unix(date: &str) -> Option<i64> {
     parse_date(date).map(|d| d * 86_400 + 86_399)
 }

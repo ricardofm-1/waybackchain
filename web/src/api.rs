@@ -1,7 +1,7 @@
 //! Calls to the Worker. Same origin, so `hl_sid` rides along automatically.
 
 use gloo_net::http::{Request, Response};
-use wayback_core::api::{ApiError, LookupStartRequest, LookupStartResponse, Quota};
+use wayback_core::api::{ApiError, Holdings, LookupAddressRequest, LookupStartRequest, LookupStartResponse, Quota};
 
 #[derive(Debug, Clone)]
 pub enum CallError {
@@ -12,6 +12,13 @@ pub enum CallError {
 }
 
 impl CallError {
+    pub fn code(&self) -> Option<&str> {
+        match self {
+            CallError::Api(body) => Some(body.error.as_str()),
+            CallError::Transport(_) => None,
+        }
+    }
+
     /// A message for the user.
     pub fn user_message(&self) -> String {
         match self {
@@ -19,6 +26,10 @@ impl CallError {
                 "captcha_failed" => "The captcha check failed. Please complete it again.".into(),
                 "captcha_unavailable" => "The captcha service is unreachable right now. Try again in a minute.".into(),
                 "daily_limit" => "You've used all 10 lookups for today. The limit resets at 00:00 UTC.".into(),
+                "bad_token" => "This lookup has expired. Press Look up to run it again.".into(),
+                "upstream_error" => "The blockchain data provider didn't answer. Try again.".into(),
+                "chain_not_supported_yet" => "This chain isn't supported yet; it's coming in a later build step.".into(),
+                "address_not_in_lookup" => "This address isn't part of the current lookup.".into(),
                 "invalid_input" => "The server rejected the addresses or date. Check the list and try again.".into(),
                 other => format!("Something went wrong ({other}). Please try again."),
             },
@@ -51,6 +62,16 @@ pub async fn quota() -> Result<Quota, CallError> {
 
 pub async fn lookup_start(body: &LookupStartRequest) -> Result<LookupStartResponse, CallError> {
     let resp = Request::post("/api/lookup/start")
+        .json(body)
+        .map_err(|e| CallError::Transport(e.to_string()))?
+        .send()
+        .await
+        .map_err(|e| CallError::Transport(e.to_string()))?;
+    parse(resp).await
+}
+
+pub async fn lookup_address(body: &LookupAddressRequest) -> Result<Holdings, CallError> {
+    let resp = Request::post("/api/lookup/address")
         .json(body)
         .map_err(|e| CallError::Transport(e.to_string()))?
         .send()

@@ -68,10 +68,15 @@ pub struct TokenHolding {
 pub struct Holdings {
     pub chain: Chain,
     pub address: String,
-    pub as_of_block: String,
+    /// Last block (or ledger / slot) at or before the cutoff, when known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub as_of_block: Option<String>,
+    /// The cutoff: `YYYY-MM-DDT23:59:59Z`.
     pub as_of_time: String,
-    pub native: Amount,
+    /// `None` when the balance couldn't be determined (see `warnings`).
+    pub native: Option<Amount>,
     pub tokens: Vec<TokenHolding>,
+    /// Machine codes, e.g. `too_many_txs`. The frontend turns them into text.
     pub warnings: Vec<String>,
 }
 

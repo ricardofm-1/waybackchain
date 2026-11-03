@@ -17,3 +17,7 @@ sha2 = "0.10"
 hex = "0.4"
 base64 = "0.22"
 getrandom = { version = "0.2", features = ["js"] }
+futures-util = { version = "0.3", default-features = false }
+
+[dev-dependencies]
+futures = { version = "0.3", default-features = false, features = ["executor"] }
