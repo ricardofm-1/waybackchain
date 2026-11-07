@@ -2,3 +2,9 @@
 # an origin in development, just as they will on Cloudflare Pages.
 [[proxy]]
 backend = "http://127.0.0.1:8787/api/"
+
+# Writes dist/_headers (Content-Security-Policy etc.) for Cloudflare Pages.
+[[hooks]]
+stage = "post_build"
+command = "python3"
+command_arguments = ["hooks/csp.py"]

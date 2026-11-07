@@ -87,6 +87,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         }
     }
     resp.headers_mut().set("Cache-Control", "no-store")?;
+    resp.headers_mut().set("X-Content-Type-Options", "nosniff")?;
     console_log!("{route} -> {} in {}ms", resp.status_code(), Date::now().as_millis() - started);
     Ok(resp)
 }

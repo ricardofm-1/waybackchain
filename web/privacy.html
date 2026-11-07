@@ -4,22 +4,58 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Privacy · Wayback Wallet</title>
-    <style>
-      body { font: 16px/1.6 system-ui, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px 16px; color-scheme: light dark; }
-      code { font-size: 0.9em; }
-    </style>
+    <link rel="stylesheet" href="privacy.css" />
   </head>
   <body>
-    <h1>Privacy</h1>
-    <p>Wayback Wallet has no accounts and stores no addresses on its servers.</p>
-    <h2>Cookies</h2>
-    <ul>
-      <li><code>hl_addr</code> keeps your address list on this device so you don't retype it. It's set when a lookup succeeds and lasts 180 days. Use “Clear saved addresses” to delete it.</li>
-      <li><code>hl_sid</code> is a random ID that counts your daily lookups (10 per day). Page scripts can't read it. It lasts 365 days.</li>
-    </ul>
-    <p>Both cookies are needed for features you ask for, so there is no consent banner.</p>
-    <h2>What we send and log</h2>
-    <p>Your addresses leave your browser only inside a lookup request. Our server forwards them to public blockchain data providers to fetch balances, and does not log them. Server logs record only the chain, whether the request succeeded, and how long it took.</p>
-    <p><a href="./">Back to Wayback Wallet</a></p>
+    <main>
+      <p><a href="./">← Back to Wayback Wallet</a></p>
+      <h1>Privacy</h1>
+      <p>Wayback Wallet has no accounts, no analytics and no advertising. It looks up public blockchain data for the addresses you enter and shows what they held on a date you choose.</p>
+
+      <h2>Cookies</h2>
+      <p>Both cookies serve features you ask for, so there is no consent banner.</p>
+      <table>
+        <thead><tr><th>Cookie</th><th>What it holds</th><th>Why</th><th>Lasts</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>hl_addr</code></td>
+            <td>Your address list, on this device only.</td>
+            <td>So you don't retype it. Saved after a successful lookup. “Clear saved addresses” deletes it.</td>
+            <td>180 days</td>
+          </tr>
+          <tr>
+            <td><code>hl_sid</code></td>
+            <td>A random ID with a signature. Page scripts can't read it.</td>
+            <td>Counts your lookups (10 per day).</td>
+            <td>365 days</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>Where your addresses go</h2>
+      <p>Addresses leave your browser only inside a lookup request to our server, which forwards each one to the public data provider for its chain:</p>
+      <ul>
+        <li><strong>Bitcoin:</strong> mempool.space, with blockstream.info as a fallback</li>
+        <li><strong>Ethereum:</strong> Alchemy</li>
+        <li><strong>Solana:</strong> Helius, with the public Solana RPC as a fallback</li>
+        <li><strong>XRP Ledger:</strong> s2.ripple.com, with xrplcluster.com as a fallback</li>
+        <li><strong>Cardano:</strong> Blockfrost</li>
+      </ul>
+      <p>Each provider has its own privacy policy. For USD values we ask DefiLlama for token prices; that request names coins and token contracts, not your addresses.</p>
+
+      <h2>What our server keeps</h2>
+      <ul>
+        <li><strong>Logs:</strong> the endpoint, whether it succeeded and how long it took. Never addresses, never IP addresses.</li>
+        <li><strong>Daily counters:</strong> one per visitor ID and one per IP address. The IP is stored only as a keyed hash, and each counter holds just today's count.</li>
+        <li><strong>Result cache:</strong> results for dates at least two days old are kept for 30 days so repeat lookups are fast. Each entry is filed under a keyed hash of the chain, address and date, and the stored result has the address removed, so the cache can't be searched for an address.</li>
+        <li><strong>Price cache:</strong> historical prices per date. These contain no personal data.</li>
+      </ul>
+
+      <h2>Captcha</h2>
+      <p>Lookups are protected by Cloudflare Turnstile, which runs a privacy-preserving check in your browser. See Cloudflare's <a href="https://www.cloudflare.com/privacypolicy/">privacy policy</a>.</p>
+
+      <h2>Your choices</h2>
+      <p>Delete both cookies in your browser at any time; the site works without saved addresses, and a new visitor ID is issued when needed. Nothing else we hold is linked to you.</p>
+    </main>
   </body>
 </html>

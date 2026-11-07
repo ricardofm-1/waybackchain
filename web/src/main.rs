@@ -67,6 +67,22 @@ fn App() -> impl IntoView {
             && !busy.get()
             && quota.get().is_none_or(|q| q.remaining > 0)
     });
+    // Why the button is disabled, in the order a user would fix it.
+    let blocked_reason = Memo::new(move |_| -> Option<&'static str> {
+        if busy.get() {
+            None
+        } else if quota.get().is_some_and(|q| q.remaining == 0) {
+            Some("No lookups left today. The limit resets at 00:00 UTC.")
+        } else if lines.with(|ls| ls.is_empty()) {
+            Some("Enter at least one address.")
+        } else if date.get().is_empty() {
+            Some("Pick a date.")
+        } else if captcha_token.get().is_empty() {
+            Some("Complete the check above to enable Look up. If it doesn't appear, reload the page.")
+        } else {
+            None
+        }
+    });
 
     let today_for_submit = today.clone();
     let on_submit = move |ev: leptos::ev::SubmitEvent| {
@@ -213,11 +229,17 @@ fn App() -> impl IntoView {
                 <div class="captcha" node_ref=captcha_ref aria-label="Captcha"></div>
 
                 <div class="actions">
-                    <button type="submit" class="primary" disabled=move || !can_submit.get()>
+                    <button
+                        type="submit"
+                        class="primary"
+                        disabled=move || !can_submit.get()
+                        aria-describedby="blocked-reason"
+                    >
                         {move || if busy.get() { "Starting…" } else { "Look up" }}
                     </button>
                     <button type="button" class="secondary" on:click=on_clear>"Clear saved addresses"</button>
                 </div>
+                <p id="blocked-reason" class="hint" aria-live="polite">{move || blocked_reason.get()}</p>
 
                 {move || message.get().map(|(ok, m)| view! {
                     <p class="message" class:error=!ok role="status">{m}</p>

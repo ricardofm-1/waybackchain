@@ -226,3 +226,10 @@ label.check.small { margin-top: 2px; font-size: 0.9rem; }
   .table-scroll { overflow: visible; }
   .addr, .meta { overflow-wrap: anywhere; }
 }
+
+#blocked-reason:empty { display: none; }
+
+/* Long amounts (18-decimal tokens) must wrap at 360 px rather than widen the card. */
+table.tokens td:nth-child(2) { overflow-wrap: anywhere; }
+table.tokens td.num:not(:nth-child(2)) { white-space: nowrap; }
+table.tokens th + th, table.tokens td + td { padding-left: 10px; }
