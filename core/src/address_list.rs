@@ -195,3 +195,22 @@ mod tests {
         assert!(value.len() <= COOKIE_MAX_VALUE_BYTES);
     }
 }
+
+#[cfg(test)]
+mod donation_addresses {
+    use crate::{detect, Chain};
+
+    /// The donation addresses shown in the site footer must be valid.
+    #[test]
+    fn all_valid() {
+        for (a, chain) in [
+            ("bc1qeywc96rfefjr4220zewj9zxmds4yz0ctl0h63z", Chain::Btc),
+            ("0x189419C6A19d11263c28E5391a473741e44EF459", Chain::Eth),
+            ("9zgzGhbMYSj7Sac19jgSwP1UoZ6kWqXURHKs6ARe3w8X", Chain::Sol),
+            ("rKGTvURZpK4ug3TrHPikoafywyaBjuMaXh", Chain::Xrp),
+            ("addr1q8qwc455erdfevgj8xv78r262fs8eu6xln9u3s7lps8vvygckhpjgqxgmkcxvr2zhjjrdd9ty9ggev4yahznlzymg8cs5n6pt6", Chain::Ada),
+        ] {
+            assert_eq!(detect(a).map(|d| d.chain), Ok(chain), "{a}");
+        }
+    }
+}

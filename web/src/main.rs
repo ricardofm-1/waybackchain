@@ -1,5 +1,6 @@
 mod api;
 mod cookie;
+mod footer;
 mod results;
 mod turnstile;
 
@@ -245,18 +246,12 @@ fn App() -> impl IntoView {
                     <p class="message" class:error=!ok role="status">{m}</p>
                 })}
 
-                <p class="notice">
-                    "We use two cookies: one keeps your address list on this device, one counts your daily lookups. "
-                    <a href="privacy.html">"Privacy"</a>
-                </p>
             </form>
         </main>
 
         {move || lookup.get().map(|l| view! { <results::Results lookup=l /> })}
 
-        <footer>
-            "Data comes from public blockchain APIs and may be incomplete for very active addresses."
-        </footer>
+        <footer::SiteFooter />
     }
 }
 
