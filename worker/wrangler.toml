@@ -2,6 +2,12 @@ name = "wayback-wallet"
 main = "build/worker/shim.mjs"
 compatibility_date = "2026-10-01"
 workers_dev = true
+# The site's domain (zone on this Cloudflare account). Custom domains get
+# their DNS records and certificate automatically.
+routes = [
+  { pattern = "waybackchain.xyz", custom_domain = true },
+  { pattern = "www.waybackchain.xyz", custom_domain = true },
+]
 
 [build]
 command = "worker-build --release"
