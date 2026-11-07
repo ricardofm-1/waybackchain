@@ -9,3 +9,5 @@ ALCHEMY_KEY=
 HELIUS_KEY=
 # Cardano: https://blockfrost.io (a Cardano mainnet project)
 BLOCKFROST_KEY=
+# Local dev: the page is served by Trunk on another origin.
+ALLOWED_ORIGIN=http://127.0.0.1:8080

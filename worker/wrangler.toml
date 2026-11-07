@@ -1,9 +1,19 @@
-name = "wayback-worker"
+name = "wayback-wallet"
 main = "build/worker/shim.mjs"
 compatibility_date = "2026-10-01"
+workers_dev = true
 
 [build]
 command = "worker-build --release"
+
+# One Worker serves the whole site: the static frontend (built by Trunk into
+# ../web/dist, including its _headers with the Content-Security-Policy) and
+# the API. Only /api/* runs the Worker code; everything else is a static
+# asset. Same origin, so the cookies need no CORS.
+# Build the frontend first: `cd ../web && trunk build --release`.
+[assets]
+directory = "../web/dist"
+run_worker_first = ["/api/*"]
 
 [[durable_objects.bindings]]
 name = "LIMITER"
@@ -13,17 +23,15 @@ class_name = "Limiter"
 tag = "v1"
 new_sqlite_classes = ["Limiter"]
 
-# Result and price cache. Locally `wrangler dev` simulates it; before
-# deploying, create the namespace (`npx wrangler kv namespace create CACHE`)
-# and put its id here.
+# Result and price cache (`wrangler dev` simulates it locally).
 [[kv_namespaces]]
 binding = "CACHE"
-id = "local-dev-cache"
+id = "60b147c4f2834cb7ad4019358ede7f0a"
 
 [vars]
-# The site origin allowed by CORS. Same-origin deploys (Pages + Worker route
-# on one domain) don't need it; the dev setup proxies /api through Trunk.
-ALLOWED_ORIGIN = "http://127.0.0.1:8080"
+# Only needed when the page is served from another origin; production is
+# same-origin. Local dev overrides this in .dev.vars.
+ALLOWED_ORIGIN = ""
 
 # Secrets (set with `wrangler secret put NAME`; locally in .dev.vars):
 #   HMAC_SECRET, TURNSTILE_SECRET, ALCHEMY_KEY, HELIUS_KEY, BLOCKFROST_KEY

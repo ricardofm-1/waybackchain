@@ -40,4 +40,7 @@ headers = f"""/*
 """
 with open(os.path.join(staging, "_headers"), "w", encoding="utf-8") as f:
     f.write(headers)
+# Build artefacts Workers static assets shouldn't upload.
+with open(os.path.join(staging, ".assetsignore"), "w", encoding="utf-8") as f:
+    f.write(".trunk-lock\n")
 print(f"csp.py: {len(inline)} inline script(s) hashed into _headers")
