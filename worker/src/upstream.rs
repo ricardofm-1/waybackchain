@@ -121,7 +121,7 @@ impl Http {
     ) -> Result<T, UpstreamError> {
         let headers = Headers::new();
         let _ = headers.set("Accept", "application/json");
-        let _ = headers.set("User-Agent", "wayback-wallet/0.1");
+        let _ = headers.set("User-Agent", "waybackchain/0.1");
         for (k, v) in extra {
             let _ = headers.set(k, v);
         }

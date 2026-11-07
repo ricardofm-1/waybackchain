@@ -1,4 +1,4 @@
-//! Wayback Wallet API Worker.
+//! Wayback Chain API Worker.
 //!
 //! Every request: resolve (or issue) the signed `hl_sid` cookie, route, then
 //! add CORS and `Set-Cookie`. Logs carry route, status and duration only —

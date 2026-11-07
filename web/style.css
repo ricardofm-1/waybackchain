@@ -249,3 +249,4 @@ table.tokens th + th, table.tokens td + td { padding-left: 10px; }
 .footer-line { border-top: 1px solid var(--line); padding-top: 12px; color: var(--muted); font-size: 0.8rem; }
 .footer-line p { margin: 0 0 4px; }
 .copyright { color: var(--fg); }
+.tagline { margin: 2px 0 0; color: var(--muted); font-size: 0.95rem; }

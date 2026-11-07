@@ -20,7 +20,7 @@ def get(path):
     if path in cache:
         return cache[path]
     time.sleep(1.2)
-    req = urllib.request.Request(API + path, headers={"User-Agent": "wayback-wallet-fixtures"})
+    req = urllib.request.Request(API + path, headers={"User-Agent": "waybackchain-fixtures"})
     data = json.load(urllib.request.urlopen(req))
     cache[path] = data
     (OUT / (path.lstrip("/").replace("/", "__") + ".json")).write_text(json.dumps(data, indent=1))

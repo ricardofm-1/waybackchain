@@ -446,7 +446,7 @@ fn export_pdf(date: &str) {
         }
     }
     let title = doc.title();
-    doc.set_title(&format!("wayback-wallet-{date}"));
+    doc.set_title(&format!("waybackchain-{date}"));
     // print() blocks until the dialog closes in every major browser.
     let _ = window.print();
     doc.set_title(&title);
@@ -508,7 +508,7 @@ pub fn Results(lookup: ActiveLookup) -> impl IntoView {
     view! {
         <section class="results" aria-live="polite">
             <div class="print-only print-head">
-                <p class="print-brand">"Wayback Wallet"</p>
+                <p class="print-brand">"Wayback Chain"</p>
                 <p class="print-meta">{move || format!("{total} addresses · generated {}", printed_at.get())}</p>
             </div>
             <div class="results-head">

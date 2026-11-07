@@ -165,7 +165,8 @@ fn App() -> impl IntoView {
 
     view! {
         <header class="top">
-            <h1>"Wayback Wallet"</h1>
+            <h1>"Wayback Chain"</h1>
+            <p class="tagline">"See what any address held, on any date."</p>
             <p class="quota">
                 "Lookups left today: "
                 <strong>{move || quota.get().map_or("–".to_string(), |q| q.remaining.to_string())}</strong>

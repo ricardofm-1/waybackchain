@@ -1,4 +1,4 @@
-//! Shared code for the Wayback Wallet frontend and Worker.
+//! Shared code for the Wayback Chain frontend and Worker.
 //!
 //! Address validation and chain detection live here so the browser and the
 //! Worker run exactly the same checks.
