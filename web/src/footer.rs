@@ -88,6 +88,10 @@ pub fn SiteFooter() -> impl IntoView {
                     "We use two cookies: one keeps your address list on this device, one counts your daily lookups. "
                     <a href="privacy.html">"Privacy"</a>
                 </p>
+                <p>
+                    "Open source (MIT): "
+                    <a href="https://github.com/ricardofm-1/waybackchain">"source code on GitHub"</a>
+                </p>
                 <p class="copyright">"Copyright © 2026 Daedalus Labs"</p>
             </div>
         </footer>
