@@ -2,7 +2,7 @@
   "name": "wayback-worker",
   "private": true,
   "scripts": {
-    "dev": "wrangler dev --port 8787",
+    "dev": "mkdir -p ../web/dist-release && wrangler dev --port 8787",
     "deploy": "wrangler deploy",
     "test:ratelimit": "bash test/ratelimit.sh"
   },

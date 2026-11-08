@@ -16,9 +16,11 @@ command = "worker-build --release"
 # ../web/dist, including its _headers with the Content-Security-Policy) and
 # the API. Only /api/* runs the Worker code; everything else is a static
 # asset. Same origin, so the cookies need no CORS.
-# Build the frontend first: `cd ../web && trunk build --release`.
+# ../deploy.sh builds the release frontend into web/dist-release, a folder
+# `trunk serve` never writes to, so a running dev server can't leak a dev
+# build into a deploy.
 [assets]
-directory = "../web/dist"
+directory = "../web/dist-release"
 run_worker_first = ["/api/*"]
 
 [[durable_objects.bindings]]

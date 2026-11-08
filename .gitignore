@@ -1,5 +1,6 @@
 /target
 /web/dist
+/web/dist-release
 .wrangler
 .dev.vars
 /worker/build
