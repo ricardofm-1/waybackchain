@@ -31,8 +31,6 @@ fn utc_date(offset_days: f64) -> String {
 
 #[component]
 fn App() -> impl IntoView {
-    let (logo_choice, logo_preview) = logo::init();
-    let logo_current = RwSignal::new(logo_choice);
     let saved = cookie::load();
     let (text, set_text) = signal(saved.join("\n"));
     let today = utc_date(0.0);
@@ -171,7 +169,7 @@ fn App() -> impl IntoView {
         <header class="top">
             <h1>
                 <span class="sr-only">"Wayback Chain"</span>
-                <span class="logo" inner_html=move || logo::svg(&logo_current.get())></span>
+                <span class="logo" inner_html=logo::SVG></span>
             </h1>
             <p class="tagline">
                 "See what any "<strong>"crypto wallet"</strong>" held on any date. Check historical "
@@ -265,7 +263,6 @@ fn App() -> impl IntoView {
 
         <div class="about-wrap no-print"><about::About /></div>
         <footer::SiteFooter />
-        {logo_preview.then(|| view! { <logo::LogoSwitcher current=logo_current /> })}
     }
 }
 

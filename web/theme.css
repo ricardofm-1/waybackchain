@@ -32,9 +32,9 @@
   /* Header: SVG wordmark, keyword-rich intro */
   header.top { border-bottom: 1px solid rgba(255, 47, 179, 0.35); padding-block: 18px 12px; }
   h1 { margin: 0; line-height: 0; }
-  .logo { display: block; width: min(100%, 460px); }
+  .logo { display: block; width: min(100%, 480px); margin-inline: auto; }
   .logo svg { display: block; width: 100%; height: auto; overflow: visible; }
-  .tagline { margin: 10px 0 6px; color: #e7dcff; font-size: 1rem; line-height: 1.55; max-width: 60ch; }
+  .tagline { margin: 12px 0 6px; color: #e7dcff; font-size: 1rem; line-height: 1.55; }
   .tagline strong { color: var(--neon-cyan); font-weight: 600; text-shadow: 0 0 8px rgba(25, 227, 255, 0.45); }
 
   form > label:not(.check) { color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.8rem; }
@@ -57,18 +57,6 @@
   .about h2 { color: #ffd1f0; text-shadow: 0 0 10px rgba(255, 47, 179, 0.45); }
   .about h3 { color: var(--neon-cyan); }
 
-  /* Logo preview switcher (only with ?logo=) */
-  .logo-switcher {
-    position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 50;
-    display: flex; flex-wrap: wrap; gap: 4px; max-width: calc(100vw - 24px);
-    padding: 6px; border-radius: 14px; background: rgba(12, 12, 14, 0.82); backdrop-filter: blur(6px);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
-  }
-  .logo-switcher button {
-    min-height: 32px; padding: 4px 10px; font-size: 0.75rem; border-radius: 10px;
-    background: transparent; color: #f2f2f2; border: 1px solid rgba(255, 255, 255, 0.28);
-  }
-  .logo-switcher button.active { background: #f2f2f2; color: #111; border-color: #f2f2f2; }
 }
 
 /* Visually hidden, still read by screen readers and search engines. */
