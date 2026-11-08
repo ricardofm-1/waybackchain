@@ -87,14 +87,19 @@ the same balances a different way. To re-record:
 
 ## Deploy
 
+One-time setup (from `worker/`):
+
 ```sh
-cd web && TURNSTILE_SITE_KEY=<site key> trunk build --release
-cd ../worker
-npx wrangler kv namespace create CACHE      # once; put the id in wrangler.toml
+npx wrangler kv namespace create CACHE      # put the id in wrangler.toml
 for s in HMAC_SECRET TURNSTILE_SECRET ALCHEMY_KEY HELIUS_KEY BLOCKFROST_KEY; do
-  npx wrangler secret put $s                # once each
+  npx wrangler secret put $s
 done
-npx wrangler deploy
+```
+
+Then every deploy, from the repo root:
+
+```sh
+./deploy.sh   # builds web/ with the Turnstile site key, then `wrangler deploy`
 ```
 
 The free plan is enough to run it; the $5/month Workers Paid plan lifts the
