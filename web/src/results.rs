@@ -232,21 +232,63 @@ fn slices(rows: &[AggRow]) -> Vec<Slice> {
     priced
 }
 
-/// SVG path for a donut segment from angle `a0` to `a1` (radians, 0 = top,
-/// clockwise) in a 200×200 box.
-fn arc_path(a0: f64, a1: f64) -> String {
-    const C: f64 = 100.0;
-    const R: f64 = 92.0;
-    const IR: f64 = 58.0;
-    let pt = |r: f64, a: f64| (C + r * a.sin(), C - r * a.cos());
+// 3D donut geometry: the ring is tilted back (vertical radius × TILT) and
+// extruded by DEPTH. Angles in radians, 0 = top/back, clockwise; the front
+// of the ring faces the viewer at angle π.
+const CX: f64 = 100.0;
+const CY: f64 = 88.0;
+const R: f64 = 92.0;
+const IR: f64 = 56.0;
+const TILT: f64 = 0.5;
+const DEPTH: f64 = 16.0;
+
+fn pt(r: f64, a: f64, dy: f64) -> (f64, f64) {
+    (CX + r * a.sin(), CY - TILT * r * a.cos() + dy)
+}
+
+/// Top face of a ring segment.
+fn top_path(a0: f64, a1: f64) -> String {
     let large = u8::from(a1 - a0 > std::f64::consts::PI);
-    let (x0, y0) = pt(R, a0);
-    let (x1, y1) = pt(R, a1);
-    let (x2, y2) = pt(IR, a1);
-    let (x3, y3) = pt(IR, a0);
-    format!(
-        "M{x0:.2} {y0:.2}A{R} {R} 0 {large} 1 {x1:.2} {y1:.2}L{x2:.2} {y2:.2}A{IR} {IR} 0 {large} 0 {x3:.2} {y3:.2}Z"
-    )
+    let (x0, y0) = pt(R, a0, 0.0);
+    let (x1, y1) = pt(R, a1, 0.0);
+    let (x2, y2) = pt(IR, a1, 0.0);
+    let (x3, y3) = pt(IR, a0, 0.0);
+    let (ry, iry) = (R * TILT, IR * TILT);
+    format!("M{x0:.2} {y0:.2}A{R} {ry} 0 {large} 1 {x1:.2} {y1:.2}L{x2:.2} {y2:.2}A{IR} {iry} 0 {large} 0 {x3:.2} {y3:.2}Z")
+}
+
+/// A vertical wall band of radius `r` between angles a0 < a1 (span ≤ π).
+fn wall_path(r: f64, a0: f64, a1: f64) -> String {
+    let (x0, y0) = pt(r, a0, 0.0);
+    let (x1, y1) = pt(r, a1, 0.0);
+    let (x2, y2) = pt(r, a1, DEPTH);
+    let (x3, y3) = pt(r, a0, DEPTH);
+    let ry = r * TILT;
+    format!("M{x0:.2} {y0:.2}A{r} {ry} 0 0 1 {x1:.2} {y1:.2}L{x2:.2} {y2:.2}A{r} {ry} 0 0 0 {x3:.2} {y3:.2}Z")
+}
+
+fn clip(a0: f64, a1: f64, lo: f64, hi: f64) -> Option<(f64, f64)> {
+    let (s, e) = (a0.max(lo), a1.min(hi));
+    (e - s > 1e-4).then_some((s, e))
+}
+
+/// Paths for one slice: (inner far walls, outer front walls, top faces).
+fn slice_paths(a0: f64, a1: f64) -> (Vec<String>, Vec<String>, Vec<String>) {
+    use std::f64::consts::{FRAC_PI_2, PI, TAU};
+    // Outer wall is visible on the front half; the inner wall on the back half (seen through the hole).
+    let outer = clip(a0, a1, FRAC_PI_2, PI + FRAC_PI_2).map(|(s, e)| wall_path(R, s, e)).into_iter().collect();
+    let inner = [clip(a0, a1, 0.0, FRAC_PI_2), clip(a0, a1, PI + FRAC_PI_2, TAU)]
+        .into_iter()
+        .flatten()
+        .map(|(s, e)| wall_path(IR, s, e))
+        .collect();
+    // A full ring can't be one arc: split it in two.
+    let top = if a1 - a0 > TAU - 1e-3 {
+        vec![top_path(a0, a0 + PI), top_path(a0 + PI, a1)]
+    } else {
+        vec![top_path(a0, a1)]
+    };
+    (inner, outer, top)
 }
 
 fn share(part: u128, whole: u128) -> String {
@@ -267,13 +309,13 @@ fn Donut(rows: Vec<AggRow>) -> impl IntoView {
         if label == "Other" { "var(--cat-other)".to_string() } else { format!("var(--cat-{})", i + 1) }
     };
     let mut angle = 0.0f64;
-    let geometry: Vec<(String, f64)> = parts
+    let geometry: Vec<(Vec<String>, Vec<String>, Vec<String>)> = parts
         .iter()
         .map(|s| {
             let sweep = std::f64::consts::TAU * s.cents as f64 / total.max(1) as f64;
-            let path = arc_path(angle, angle + sweep);
+            let g = slice_paths(angle, angle + sweep);
             angle += sweep;
-            (path, sweep)
+            g
         })
         .collect();
     let aria = parts.iter().map(|s| format!("{} {}", s.label, share(s.cents, total))).collect::<Vec<_>>().join(", ");
@@ -282,36 +324,42 @@ fn Donut(rows: Vec<AggRow>) -> impl IntoView {
 
     view! {
         <div class="donut">
-            <svg viewBox="0 0 200 200" role="img" aria-label=format!("USD split: {aria}")>
-                {if n == 1 {
-                    // A single asset is the whole ring.
-                    view! { <circle cx="100" cy="100" r="75" fill="none" stroke=color(0, &parts[0].label) stroke-width="34" /> }.into_any()
-                } else {
-                    parts
-                        .iter()
-                        .zip(geometry)
-                        .enumerate()
-                        .map(|(i, (s, (d, _)))| {
-                            let fill = color(i, &s.label);
-                            view! {
-                                <path
-                                    d=d
-                                    fill=fill
-                                    class="slice"
-                                    class:dim=move || active.get().is_some_and(|a| a != i)
-                                    on:mouseenter=move |_| active.set(Some(i))
-                                    on:mouseleave=move |_| active.set(None)
-                                    on:click=move |_| active.update(|a| *a = if *a == Some(i) { None } else { Some(i) })
-                                />
-                            }
-                        })
-                        .collect_view()
-                        .into_any()
-                }}
-                <text x="100" y="94" class="donut-label">
+            <svg viewBox="0 34 200 128" role="img" aria-label=format!("USD split: {aria}")>
+                {
+                    // One group per layer so walls never paint over top faces.
+                    let layer = |which: usize| {
+                        parts
+                            .iter()
+                            .zip(geometry.iter())
+                            .enumerate()
+                            .map(|(i, (s, g))| {
+                                let fill = color(i, &s.label);
+                                let paths = match which { 0 => g.0.clone(), 1 => g.1.clone(), _ => g.2.clone() };
+                                let class = match which { 0 => "wall inner", 1 => "wall", _ => "slice" };
+                                paths
+                                    .into_iter()
+                                    .map(|d| view! {
+                                        <path
+                                            d=d
+                                            fill=fill.clone()
+                                            class=class
+                                            class:solo=move || n == 1
+                                            class:dim=move || active.get().is_some_and(|a| a != i)
+                                            on:mouseenter=move |_| active.set(Some(i))
+                                            on:mouseleave=move |_| active.set(None)
+                                            on:click=move |_| active.update(|a| *a = if *a == Some(i) { None } else { Some(i) })
+                                        />
+                                    })
+                                    .collect_view()
+                            })
+                            .collect_view()
+                    };
+                    view! { <g>{layer(0)}</g><g>{layer(1)}</g><g>{layer(2)}</g> }
+                }
+                <text x="100" y="91" class="donut-label">
                     {move || active.get().map_or("Total".to_string(), |i| center_parts[i].label.clone())}
                 </text>
-                <text x="100" y="116" class="donut-value">
+                <text x="100" y="105" class="donut-value">
                     {move || match active.get() {
                         Some(i) => share(value_parts[i].cents, total),
                         None => fmt_cents(total),
@@ -503,12 +551,14 @@ pub fn Results(lookup: ActiveLookup) -> impl IntoView {
     let token = lookup.token.clone();
 
     let date = lookup.date.clone();
-    let printed_at = RwSignal::new(String::new());
+    // Filled at render and refreshed on "Save as PDF", so printing from the
+    // browser menu also shows a time.
+    let printed_at = RwSignal::new(now_utc());
 
     view! {
         <section class="results" aria-live="polite">
             <div class="print-only print-head">
-                <p class="print-brand">"Wayback Chain"</p>
+                <span class="print-logo" inner_html=crate::logo::svg("wp")></span>
                 <p class="print-meta">{move || format!("{total} addresses · generated {}", printed_at.get())}</p>
             </div>
             <div class="results-head">

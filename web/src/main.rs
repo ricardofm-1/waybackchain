@@ -169,7 +169,7 @@ fn App() -> impl IntoView {
         <header class="top">
             <h1>
                 <span class="sr-only">"Wayback Chain"</span>
-                <span class="logo" inner_html=logo::SVG></span>
+                <span class="logo" inner_html=logo::svg("wc")></span>
             </h1>
             <p class="tagline">
                 "See what any "<strong>"crypto wallet"</strong>" held on any date. Check historical "

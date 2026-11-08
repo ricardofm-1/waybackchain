@@ -8,7 +8,7 @@
 //! keeps the plain text "Wayback Chain" for screen readers and search
 //! engines; this SVG is aria-hidden.
 
-pub const SVG: &str = r##"<svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+const SVG: &str = r##"<svg viewBox="0 0 560 190" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
 <defs>
   <linearGradient id="wcSun" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#fff59a"/><stop offset="0.42" stop-color="#ffb03a"/>
@@ -43,3 +43,22 @@ pub const SVG: &str = r##"<svg viewBox="0 0 560 190" xmlns="http://www.w3.org/20
   </g>
 </g>
 </svg>"##;
+
+/// The logo with its internal ids prefixed by `prefix` instead of "wc", so
+/// two copies on one page (screen header + PDF header) never share
+/// gradient ids. A hidden copy's gradients don't render in other copies.
+pub fn svg(prefix: &str) -> String {
+    SVG.replace("\"wc", &format!("\"{prefix}")).replace("#wc", &format!("#{prefix}"))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn prefixed_ids_are_unique() {
+        let a = super::svg("wc");
+        let b = super::svg("wp");
+        assert!(a.contains("id=\"wcSun\"") && a.contains("url(#wcSun)"));
+        assert!(b.contains("id=\"wpSun\"") && b.contains("url(#wpSun)"));
+        assert!(!b.contains("wc"), "every id and reference must be renamed");
+    }
+}

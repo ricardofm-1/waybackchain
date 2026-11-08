@@ -176,12 +176,16 @@ label.check.small { margin-top: 2px; font-size: 0.9rem; }
 
 /* Donut */
 .donut { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding-block: 4px; }
-.donut svg { width: 180px; height: 180px; flex: none; }
-.donut .slice { stroke: var(--card); stroke-width: 2; stroke-linejoin: round; cursor: pointer; transition: opacity 0.12s; }
-.donut .slice.dim { opacity: 0.35; }
+.donut svg { width: 240px; height: auto; flex: none; max-width: 100%; }
+.donut .slice, .donut .wall { stroke: var(--card); stroke-width: 1.5; stroke-linejoin: round; cursor: pointer; transition: opacity 0.12s; }
+.donut .slice.solo, .donut .wall.solo { stroke: none; }
+/* Side walls: the slice colour in shadow, darker inside the hole. */
+.donut .wall { filter: brightness(0.66); }
+.donut .wall.inner { filter: brightness(0.45); }
+.donut .dim { opacity: 0.35; }
 .donut-label, .donut-value { text-anchor: middle; fill: var(--fg); }
-.donut-label { font-size: 12px; fill: var(--muted); }
-.donut-value { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.donut-label { font-size: 10px; fill: var(--muted); }
+.donut-value { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .donut-legend { list-style: none; margin: 0; padding: 0; flex: 1 1 220px; min-width: 0; display: grid; gap: 4px; }
 .donut-legend li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto auto; gap: 8px; align-items: center; font-size: 0.85rem; padding: 2px 4px; border-radius: 6px; }
 .donut-legend li.active { background: var(--bg); }
@@ -201,8 +205,9 @@ label.check.small { margin-top: 2px; font-size: 0.9rem; }
   :root {
     --bg: #ffffff; --fg: #1c1c1a; --muted: #5f5f5a; --line: #d6d6d0; --card: #ffffff;
     --accent: #2f5bd3; --bad: #b3261e; --bad-bg: #fdecea; --ok-bg: #e8f3ec;
-    --cat-1: #2a78d6; --cat-2: #eb6834; --cat-3: #1baf7a;
-    --cat-4: #eda100; --cat-5: #e87ba4; --cat-6: #008300; --cat-other: #a3a39c;
+    /* Same neon chart hues as the site, validated on white too. */
+    --cat-1: #e0409f; --cat-2: #1b9fd0; --cat-3: #e86a2a;
+    --cat-4: #9a6bff; --cat-5: #b8860b; --cat-6: #4f7cff; --cat-other: #8a7ca3;
     color-scheme: light;
   }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -211,7 +216,8 @@ label.check.small { margin-top: 2px; font-size: 0.9rem; }
   header.top, main, footer, .no-print { display: none !important; }
   .print-only { display: block !important; }
   .print-head { border-bottom: 1px solid var(--line); padding-bottom: 6px; margin-bottom: 4px; }
-  .print-brand { margin: 0; font-size: 15pt; font-weight: 700; }
+  .print-logo { display: block; width: 62mm; margin-bottom: 2mm; }
+  .print-logo svg { display: block; width: 100%; height: auto; overflow: visible; }
   .print-meta, .print-foot { margin: 2px 0 0; color: var(--muted); font-size: 8.5pt; }
   .print-foot { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 6px; }
   .results { max-width: none; padding: 0; gap: 6px; }
