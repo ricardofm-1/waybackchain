@@ -1,0 +1,76 @@
+/* Wayback Chain look: neon 1985. Original artwork in the spirit of 80s
+   action-film titles, no film logos or names. Screen only: printing and
+   the PDF export keep the plain white layout from style.css.
+
+   Chart hues stay the validated categorical palette (dark steps), checked
+   against the card surface #1d1033 with the dataviz validator. */
+
+@media screen {
+  :root:root {
+    --bg: #120822; --fg: #f6eeff; --muted: #c2b2de; --line: #3e2763; --card: #1d1033;
+    --accent: #19e3ff; --bad: #ff6b8b; --bad-bg: #3a1027; --ok-bg: #12283a;
+    --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500; --cat-5: #d55181; --cat-6: #008300; --cat-other: #5f5f5a;
+    --neon-pink: #ff2fb3; --neon-cyan: #19e3ff;
+    color-scheme: dark;
+  }
+  body {
+    background: linear-gradient(180deg, #0b0516 0%, #1c0a33 40%, #3a0f4d 68%, #120822 100%) fixed;
+    background-color: #120822;
+    font-family: "Avenir Next", "Futura", "Century Gothic", system-ui, sans-serif;
+  }
+  /* Perspective grid on the horizon, behind everything */
+  body::before {
+    content: ""; position: fixed; left: -40%; right: -40%; bottom: 0; height: 42vh; z-index: -1; pointer-events: none;
+    background:
+      repeating-linear-gradient(90deg, rgba(255, 47, 179, 0.55) 0 2px, transparent 2px 64px),
+      repeating-linear-gradient(0deg, rgba(25, 227, 255, 0.45) 0 2px, transparent 2px 40px);
+    transform: perspective(260px) rotateX(58deg); transform-origin: 50% 100%;
+    -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0) 90%);
+    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0) 90%);
+  }
+
+  /* Header: SVG wordmark, keyword-rich intro */
+  header.top { border-bottom: 1px solid rgba(255, 47, 179, 0.35); padding-block: 18px 12px; }
+  h1 { margin: 0; line-height: 0; }
+  .logo { display: block; width: min(100%, 460px); }
+  .logo svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .tagline { margin: 10px 0 6px; color: #e7dcff; font-size: 1rem; line-height: 1.55; max-width: 60ch; }
+  .tagline strong { color: var(--neon-cyan); font-weight: 600; text-shadow: 0 0 8px rgba(25, 227, 255, 0.45); }
+
+  form > label:not(.check) { color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.8rem; }
+  textarea, input[type="date"] { background: rgba(10, 4, 22, 0.85); border-color: rgba(25, 227, 255, 0.35); color: #fff; }
+  textarea:focus, input:focus { outline-color: var(--neon-cyan); box-shadow: 0 0 14px rgba(25, 227, 255, 0.45); }
+  .card, .summary, .about, .donation {
+    border-color: rgba(255, 47, 179, 0.4); border-radius: 12px;
+    box-shadow: 0 0 0 1px rgba(25, 227, 255, 0.06), 0 0 22px rgba(255, 47, 179, 0.14);
+  }
+  button.primary {
+    background: linear-gradient(90deg, #ff2fb3, #ff7a00); color: #fff; text-transform: uppercase; letter-spacing: 0.1em;
+    box-shadow: 0 0 18px rgba(255, 47, 179, 0.55);
+  }
+  button.secondary { border-color: rgba(25, 227, 255, 0.45); color: var(--neon-cyan); }
+  .results h2 { font-style: italic; text-transform: uppercase; color: #ffd1f0; text-shadow: 0 0 10px rgba(255, 47, 179, 0.6); }
+  .grand-total strong, .state.amount { color: var(--neon-cyan); text-shadow: 0 0 8px rgba(25, 227, 255, 0.45); }
+  a { color: var(--neon-cyan); }
+
+  /* About / FAQ */
+  .about h2 { color: #ffd1f0; text-shadow: 0 0 10px rgba(255, 47, 179, 0.45); }
+  .about h3 { color: var(--neon-cyan); }
+
+  /* Logo preview switcher (only with ?logo=) */
+  .logo-switcher {
+    position: fixed; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 50;
+    display: flex; flex-wrap: wrap; gap: 4px; max-width: calc(100vw - 24px);
+    padding: 6px; border-radius: 14px; background: rgba(12, 12, 14, 0.82); backdrop-filter: blur(6px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  }
+  .logo-switcher button {
+    min-height: 32px; padding: 4px 10px; font-size: 0.75rem; border-radius: 10px;
+    background: transparent; color: #f2f2f2; border: 1px solid rgba(255, 255, 255, 0.28);
+  }
+  .logo-switcher button.active { background: #f2f2f2; color: #111; border-color: #f2f2f2; }
+}
+
+/* Visually hidden, still read by screen readers and search engines. */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media print { .logo { display: none; } h1 .sr-only { position: static; width: auto; height: auto; clip: auto; } }

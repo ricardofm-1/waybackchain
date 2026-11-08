@@ -1,6 +1,7 @@
 mod api;
+mod about;
 mod cookie;
-mod flavour;
+mod logo;
 mod footer;
 mod results;
 mod turnstile;
@@ -30,7 +31,8 @@ fn utc_date(offset_days: f64) -> String {
 
 #[component]
 fn App() -> impl IntoView {
-    let flavour_choice = flavour::init();
+    let (logo_choice, logo_preview) = logo::init();
+    let logo_current = RwSignal::new(logo_choice);
     let saved = cookie::load();
     let (text, set_text) = signal(saved.join("\n"));
     let today = utc_date(0.0);
@@ -167,16 +169,15 @@ fn App() -> impl IntoView {
 
     view! {
         <header class="top">
-            <div class="flavour-art" aria-hidden="true">
-                <span class="clock"><span class="hand hour"></span><span class="hand minute"></span></span>
-                <span class="sun"></span>
-            </div>
-            <p class="dateline">{format!("Vol. I · Est. 2026 · {} · Free of charge", flavour::display_date(&today))}</p>
             <h1>
-                <span class="logo-text">"Wayback Chain"</span>
-                <span class="logo-neon" inner_html=flavour::NEON_LOGO_SVG></span>
+                <span class="sr-only">"Wayback Chain"</span>
+                <span class="logo" inner_html=move || logo::svg(&logo_current.get())></span>
             </h1>
-            <p class="tagline">"See what any address held, on any date."</p>
+            <p class="tagline">
+                "See what any "<strong>"crypto wallet"</strong>" held on any date. Check historical "
+                <strong>"blockchain balances and tokens"</strong>
+                " for Bitcoin, Ethereum, Solana, XRP Ledger and Cardano addresses, read straight from the chain, with USD values. Free, no sign-up."
+            </p>
             <p class="quota">
                 "Lookups left today: "
                 <strong>{move || quota.get().map_or("–".to_string(), |q| q.remaining.to_string())}</strong>
@@ -228,10 +229,6 @@ fn App() -> impl IntoView {
                     on:input=move |ev| set_date.set(event_target_value(&ev))
                 />
                 <p class="hint">"Balances as of " <strong>"23:59:59 UTC"</strong> " on this date."</p>
-                <flavour::TimeCircuits
-                    date=Signal::derive(move || date.get())
-                    last=Signal::derive(move || lookup.get().map(|l| l.date.clone()))
-                />
 
                 <label class="check">
                     <input
@@ -266,8 +263,9 @@ fn App() -> impl IntoView {
 
         {move || lookup.get().map(|l| view! { <results::Results lookup=l /> })}
 
+        <div class="about-wrap no-print"><about::About /></div>
         <footer::SiteFooter />
-        {flavour_choice.map(|f| view! { <flavour::FlavourSwitcher initial=f /> })}
+        {logo_preview.then(|| view! { <logo::LogoSwitcher current=logo_current /> })}
     }
 }
 

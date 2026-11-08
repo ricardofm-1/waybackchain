@@ -250,3 +250,15 @@ table.tokens th + th, table.tokens td + td { padding-left: 10px; }
 .footer-line p { margin: 0 0 4px; }
 .copyright { color: var(--fg); }
 .tagline { margin: 2px 0 0; color: var(--muted); font-size: 0.95rem; }
+
+/* About / FAQ */
+.about-wrap { max-width: 720px; margin: 24px auto 0; }
+.about { padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.about h2 { font-size: 1.15rem; margin: 0 0 8px; }
+.about h3 { font-size: 1rem; margin: 18px 0 6px; }
+.about p, .about li { font-size: 0.92rem; line-height: 1.6; }
+.about ul, .about ol { margin: 0; padding-left: 20px; }
+.faq { display: grid; gap: 6px; }
+.faq details { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.faq summary { cursor: pointer; font-weight: 600; }
+.faq details p { margin: 8px 0 2px; color: var(--muted); }

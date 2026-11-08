@@ -3,16 +3,73 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Wayback Chain</title>
-    <meta name="description" content="Wayback Chain: see what any Bitcoin, Ethereum, Solana, XRP Ledger or Cardano address held, on any date." />
+    <title>Wayback Chain · Historical Crypto Wallet Balances on Any Date</title>
+    <meta name="description" content="Check what any crypto wallet held on any past date. Historical balances and tokens for Bitcoin, Ethereum, Solana, XRP and Cardano addresses, with USD values." />
+    <link rel="canonical" href="https://waybackchain.xyz/" />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#120822" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Wayback Chain" />
+    <meta property="og:title" content="Wayback Chain · Historical Crypto Wallet Balances on Any Date" />
+    <meta property="og:description" content="See what any Bitcoin, Ethereum, Solana, XRP Ledger or Cardano wallet held on any date: balances, tokens and USD values, straight from the blockchain. Free." />
+    <meta property="og:url" content="https://waybackchain.xyz/" />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Wayback Chain · Historical Crypto Wallet Balances" />
+    <meta name="twitter:description" content="See what any crypto wallet held on any date. Bitcoin, Ethereum, Solana, XRP Ledger and Cardano. Free, no sign-up." />
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebApplication",
+          "name": "Wayback Chain",
+          "url": "https://waybackchain.xyz/",
+          "description": "Check historical crypto wallet balances on any date: native coins and tokens for Bitcoin, Ethereum, Solana, XRP Ledger and Cardano addresses, with indicative USD values.",
+          "applicationCategory": "FinanceApplication",
+          "operatingSystem": "Any",
+          "isAccessibleForFree": true,
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+          "license": "https://opensource.org/licenses/MIT",
+          "publisher": { "@type": "Organization", "name": "Daedalus Labs" }
+        },
+        {
+          "@type": "FAQPage",
+          "mainEntity": [
+            { "@type": "Question", "name": "Is Wayback Chain free? Do I need an account?",
+              "acceptedAnswer": { "@type": "Answer", "text": "Yes, it is free, with no sign-up and no tracking. Each visitor can run 10 lookups per day, each covering up to 30 wallet addresses." } },
+            { "@type": "Question", "name": "Do you need my private keys or seed phrase?",
+              "acceptedAnswer": { "@type": "Answer", "text": "No. Wayback Chain only reads public blockchain data for the addresses you enter. Never share your private keys or seed phrase with any website." } },
+            { "@type": "Question", "name": "How accurate are the historical balances?",
+              "acceptedAnswer": { "@type": "Answer", "text": "Balances are read from public blockchain data providers for the exact end of the chosen day, 23:59:59 UTC. USD values are indicative daily prices from DefiLlama, and tokens without a price are hidden by default." } },
+            { "@type": "Question", "name": "Can I check a whole wallet or an exchange account?",
+              "acceptedAnswer": { "@type": "Answer", "text": "Wayback Chain checks individual addresses. Wallets that use many addresses, which is common on Bitcoin and Cardano, need each address entered, and funds held on an exchange are not visible on-chain under your own address." } }
+          ]
+        }
+      ]
+    }
+    </script>
+
     <link data-trunk rel="rust" data-wasm-opt="z" />
     <link data-trunk rel="css" href="style.css" />
-    <link data-trunk rel="css" href="flavours.css" />
+    <link data-trunk rel="css" href="theme.css" />
     <link data-trunk rel="copy-file" href="privacy.html" />
     <link data-trunk rel="copy-file" href="privacy.css" />
     <link data-trunk rel="copy-file" href="turnstile.js" />
+    <link data-trunk rel="copy-file" href="favicon.svg" />
+    <link data-trunk rel="copy-file" href="robots.txt" />
+    <link data-trunk rel="copy-file" href="sitemap.xml" />
     <script src="/turnstile.js"></script>
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=wbTurnstileLoaded" async defer></script>
   </head>
-  <body></body>
+  <body>
+    <noscript>
+      <h1>Wayback Chain: historical crypto wallet balances on any date</h1>
+      <p>Check what any crypto wallet held on any past date. Enter Bitcoin, Ethereum, Solana, XRP Ledger or Cardano addresses to see historical blockchain balances and tokens at 23:59:59 UTC, with indicative USD values. Free, no sign-up.</p>
+      <p>This site needs JavaScript enabled to run lookups.</p>
+    </noscript>
+  </body>
 </html>
