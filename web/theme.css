@@ -2,14 +2,18 @@
    action-film titles, no film logos or names. Screen only: printing and
    the PDF export keep the plain white layout from style.css.
 
-   Chart hues stay the validated categorical palette (dark steps), checked
-   against the card surface #1d1033 with the dataviz validator. */
+   Chart hues are the site's neon colours (see --cat-* below), validated
+   with the dataviz validator; print keeps the light reference palette. */
 
 @media screen {
   :root:root {
     --bg: #120822; --fg: #f6eeff; --muted: #c2b2de; --line: #3e2763; --card: #1d1033;
     --accent: #19e3ff; --bad: #ff6b8b; --bad-bg: #3a1027; --ok-bg: #12283a;
-    --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500; --cat-5: #d55181; --cat-6: #008300; --cat-other: #5f5f5a;
+    /* Chart hues: the site's neon colours stepped into the readable band
+       for this surface. Order pink, cyan, orange, violet, amber, blue,
+       validated on #1d1033 including the donut's wrap-around pair (worst
+       adjacent CVD dE 8.2 deutan, normal-vision 27.4, all >= 3:1). */
+    --cat-1: #e0409f; --cat-2: #1b9fd0; --cat-3: #e86a2a; --cat-4: #9a6bff; --cat-5: #b8860b; --cat-6: #4f7cff; --cat-other: #8a7ca3;
     --neon-pink: #ff2fb3; --neon-cyan: #19e3ff;
     color-scheme: dark;
   }
