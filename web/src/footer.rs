@@ -75,7 +75,7 @@ pub fn SiteFooter() -> impl IntoView {
                     "This tool is provided free of charge, “as is” and without warranties of any kind, express or implied, including but not limited to warranties of merchantability, fitness for a particular purpose, accuracy, or non-infringement."
                 </p>
                 <p>
-                    "The source code is fully open and publicly available for independent review and audit. All cryptographic operations — message signing and signature verification — are performed locally in your browser. This site never requests, transmits, or stores private keys, seed phrases, messages, or signatures. However, open-source availability does not constitute a security guarantee. No audit, formal or informal, is implied, and the authors make no representation that the code is free of errors or vulnerabilities."
+                    "The source code is fully open and publicly available for independent review and audit. This site only reads public blockchain data: addresses you enter are sent through its server to public data providers to look up their balances, and are never stored in readable form. It never requests private keys or seed phrases and cannot access or move funds. However, open-source availability does not constitute a security guarantee. No audit, formal or informal, is implied, and the authors make no representation that the code is free of errors or vulnerabilities."
                 </p>
                 <p>
                     "Under no circumstances shall the authors or contributors be liable for any direct, indirect, incidental, or consequential damages arising from the use of, or inability to use, this tool. Use at your own risk."
