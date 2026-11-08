@@ -1,7 +1,7 @@
 name = "wayback-wallet"
 main = "build/worker/shim.mjs"
 compatibility_date = "2026-10-01"
-workers_dev = true
+workers_dev = false
 # The site's domain (zone on this Cloudflare account). Custom domains get
 # their DNS records and certificate automatically.
 routes = [
