@@ -174,3 +174,39 @@ mod tests {
         assert_eq!(display_date("nope"), "nope");
     }
 }
+
+/// Original 1980s-style wordmark for the Neon 1985 flavour: sunset-gradient
+/// slanted lettering with trailing speed streaks, chrome "CHAIN" and a chain
+/// link. Static markup (no user data), sized with textLength so it renders
+/// the same whatever heavy font the system has.
+pub const NEON_LOGO_SVG: &str = r##"<svg viewBox="0 0 560 196" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+<defs>
+  <linearGradient id="wbSun" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fff27a"/><stop offset="0.48" stop-color="#ffa23a"/><stop offset="1" stop-color="#ff2fb3"/>
+  </linearGradient>
+  <linearGradient id="wbChrome" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#ffffff"/><stop offset="0.44" stop-color="#cfd8ff"/><stop offset="0.5" stop-color="#4c5cf2"/><stop offset="0.6" stop-color="#e7ecff"/><stop offset="1" stop-color="#ffffff"/>
+  </linearGradient>
+  <linearGradient id="wbStreak" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#19e3ff" stop-opacity="0"/><stop offset="1" stop-color="#19e3ff"/>
+  </linearGradient>
+  <filter id="wbGlow" x="-20%" y="-50%" width="140%" height="200%">
+    <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>
+<g fill="url(#wbStreak)">
+  <rect x="0" y="34" width="86" height="8" rx="4"/>
+  <rect x="18" y="54" width="68" height="8" rx="4"/>
+  <rect x="34" y="74" width="52" height="8" rx="4"/>
+  <rect x="48" y="94" width="38" height="8" rx="4"/>
+</g>
+<g transform="skewX(-12)" font-family="'Arial Black','Arial Bold',Impact,'Helvetica Neue',sans-serif" font-weight="900">
+  <text x="118" y="108" font-size="88" textLength="430" lengthAdjust="spacingAndGlyphs" fill="none" stroke="#19e3ff" stroke-width="12" stroke-linejoin="round" filter="url(#wbGlow)" opacity="0.5">WAYBACK</text>
+  <text x="118" y="108" font-size="88" textLength="430" lengthAdjust="spacingAndGlyphs" fill="url(#wbSun)" stroke="#1b0a33" stroke-width="7" stroke-linejoin="round" paint-order="stroke">WAYBACK</text>
+  <text x="290" y="176" font-size="52" textLength="250" lengthAdjust="spacing" fill="url(#wbChrome)" stroke="#1b0a33" stroke-width="5" stroke-linejoin="round" paint-order="stroke">CHAIN</text>
+</g>
+<g fill="none" stroke="#19e3ff" stroke-width="6" filter="url(#wbGlow)">
+  <rect x="166" y="138" width="46" height="26" rx="13"/>
+  <rect x="196" y="138" width="46" height="26" rx="13"/>
+</g>
+</svg>"##;

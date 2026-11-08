@@ -10,7 +10,7 @@
 @media screen {
   /* Decorations exist in the markup for every flavour but show only where a
      flavour asks for them. */
-  .flavour-art, .dateline, .time-circuits, .headline-kicker { display: none; }
+  .flavour-art, .dateline, .time-circuits, .headline-kicker, .logo-neon { display: none; }
 
   /* Preview switcher (only rendered after ?theme= was used). */
   .flavour-switcher {
@@ -135,17 +135,16 @@
     filter: drop-shadow(0 0 14px rgba(255, 47, 179, 0.6));
   }
   [data-flavour="neon-1985"] .flavour-art .clock { display: none; }
-  [data-flavour="neon-1985"] h1 {
-    display: inline-block; font: italic 900 2.3rem/1.05 "Futura", "Avenir Next Condensed", "Arial Black", sans-serif;
-    letter-spacing: 0.01em; text-transform: uppercase; transform: skewX(-8deg);
-    background: linear-gradient(180deg, #ffffff 0%, #cfd8ff 42%, #4c5cf2 50%, #e7ecff 58%, #ffffff 100%);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    filter: drop-shadow(0 2px 0 #2a0b3d) drop-shadow(0 0 10px rgba(25, 227, 255, 0.45));
+  [data-flavour="neon-1985"] h1 { margin: 0; line-height: 0; }
+  [data-flavour="neon-1985"] .logo-text {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
   }
-  [data-flavour="neon-1985"] h1::after {
-    content: ""; display: block; height: 5px; margin-top: 4px; border-radius: 3px;
-    background: linear-gradient(90deg, #ffe45c, #ff7a00 45%, #ff2fb3);
-    box-shadow: 0 0 12px rgba(255, 122, 0, 0.7);
+  [data-flavour="neon-1985"] .logo-neon { display: block; width: min(100%, 440px); }
+  [data-flavour="neon-1985"] .logo-neon svg { display: block; width: 100%; height: auto; overflow: visible; }
+  @media (max-width: 480px) {
+    [data-flavour="neon-1985"] header.top { padding-right: 56px; }
+    [data-flavour="neon-1985"] .flavour-art { top: 10px; }
+    [data-flavour="neon-1985"] .flavour-art .sun { width: 50px; height: 50px; }
   }
   [data-flavour="neon-1985"] .tagline { color: var(--neon-cyan); letter-spacing: 0.06em; text-shadow: 0 0 8px rgba(25, 227, 255, 0.5); }
   [data-flavour="neon-1985"] form > label:not(.check) { color: var(--neon-cyan); text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.8rem; }

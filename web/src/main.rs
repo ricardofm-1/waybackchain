@@ -172,7 +172,10 @@ fn App() -> impl IntoView {
                 <span class="sun"></span>
             </div>
             <p class="dateline">{format!("Vol. I · Est. 2026 · {} · Free of charge", flavour::display_date(&today))}</p>
-            <h1>"Wayback Chain"</h1>
+            <h1>
+                <span class="logo-text">"Wayback Chain"</span>
+                <span class="logo-neon" inner_html=flavour::NEON_LOGO_SVG></span>
+            </h1>
             <p class="tagline">"See what any address held, on any date."</p>
             <p class="quota">
                 "Lookups left today: "
