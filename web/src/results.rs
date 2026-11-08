@@ -512,7 +512,10 @@ pub fn Results(lookup: ActiveLookup) -> impl IntoView {
                 <p class="print-meta">{move || format!("{total} addresses · generated {}", printed_at.get())}</p>
             </div>
             <div class="results-head">
-                <h2>{format!("Holdings at 23:59:59 UTC on {}", lookup.date)}</h2>
+                <h2>
+                    <span class="headline-kicker">{format!("Extra! · {}", crate::flavour::display_date(&lookup.date))}</span>
+                    {format!("Holdings at 23:59:59 UTC on {}", lookup.date)}
+                </h2>
                 <button
                     type="button"
                     class="secondary small no-print"

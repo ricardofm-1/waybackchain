@@ -1,5 +1,6 @@
 mod api;
 mod cookie;
+mod flavour;
 mod footer;
 mod results;
 mod turnstile;
@@ -29,6 +30,7 @@ fn utc_date(offset_days: f64) -> String {
 
 #[component]
 fn App() -> impl IntoView {
+    let flavour_choice = flavour::init();
     let saved = cookie::load();
     let (text, set_text) = signal(saved.join("\n"));
     let today = utc_date(0.0);
@@ -165,6 +167,11 @@ fn App() -> impl IntoView {
 
     view! {
         <header class="top">
+            <div class="flavour-art" aria-hidden="true">
+                <span class="clock"><span class="hand hour"></span><span class="hand minute"></span></span>
+                <span class="sun"></span>
+            </div>
+            <p class="dateline">{format!("Vol. I · Est. 2026 · {} · Free of charge", flavour::display_date(&today))}</p>
             <h1>"Wayback Chain"</h1>
             <p class="tagline">"See what any address held, on any date."</p>
             <p class="quota">
@@ -218,6 +225,10 @@ fn App() -> impl IntoView {
                     on:input=move |ev| set_date.set(event_target_value(&ev))
                 />
                 <p class="hint">"Balances as of " <strong>"23:59:59 UTC"</strong> " on this date."</p>
+                <flavour::TimeCircuits
+                    date=Signal::derive(move || date.get())
+                    last=Signal::derive(move || lookup.get().map(|l| l.date.clone()))
+                />
 
                 <label class="check">
                     <input
@@ -253,6 +264,7 @@ fn App() -> impl IntoView {
         {move || lookup.get().map(|l| view! { <results::Results lookup=l /> })}
 
         <footer::SiteFooter />
+        {flavour_choice.map(|f| view! { <flavour::FlavourSwitcher initial=f /> })}
     }
 }
 
